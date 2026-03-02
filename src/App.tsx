@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { LogicalSize } from "@tauri-apps/api/dpi";
+import { LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
 import "./App.css";
 
 const SIZE_PICKER = new LogicalSize(320, 400);
@@ -13,6 +13,23 @@ const SIZE_SETTINGS = new LogicalSize(340, 500);
 function startDrag(e: React.MouseEvent) {
   e.preventDefault();
   getCurrentWindow().startDragging();
+}
+
+/** Resize window while keeping the right edge anchored. */
+async function resizeRightAnchored(newSize: LogicalSize) {
+  const win = getCurrentWindow();
+  const oldSize = await win.outerSize();   // PhysicalSize
+  const pos = await win.outerPosition();   // PhysicalPosition
+  const factor = await win.scaleFactor();
+
+  // Current right edge in physical pixels
+  const rightEdge = pos.x + oldSize.width;
+  const newPhysicalW = Math.round(newSize.width * factor);
+
+  // Resize first (macOS may reposition the window during setSize)
+  await win.setSize(newSize);
+  // Then override position so the right edge stays put
+  await win.setPosition(new PhysicalPosition(rightEdge - newPhysicalW, pos.y));
 }
 
 interface TimerDef {
@@ -339,6 +356,13 @@ function HotkeyCapture({
   onCancel: () => void;
 }) {
   const [capturing, setCapturing] = useState(false);
+  const captureRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (capturing && captureRef.current) {
+      captureRef.current.focus();
+    }
+  }, [capturing]);
 
   if (!capturing) {
     return (
@@ -350,9 +374,9 @@ function HotkeyCapture({
 
   return (
     <span
+      ref={captureRef}
       className="hotkey-capture"
       tabIndex={0}
-      autoFocus
       onKeyDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -432,6 +456,28 @@ function SettingsPage({
     }
   };
 
+  const resetTimerHotkey = (bossId: string, timerId: string, defaultHotkey: string | null) => {
+    if (!settings) return;
+    const newHotkeys = { ...settings.hotkeys };
+    if (newHotkeys[bossId]) {
+      const { [timerId]: _, ...rest } = newHotkeys[bossId];
+      if (Object.keys(rest).length === 0) {
+        delete newHotkeys[bossId];
+      } else {
+        newHotkeys[bossId] = rest;
+      }
+    }
+    persistSettings({ ...settings, hotkeys: newHotkeys });
+
+    const newBossHotkeys = { ...bossHotkeys };
+    if (newBossHotkeys[bossId]) {
+      newBossHotkeys[bossId] = newBossHotkeys[bossId].map((h) =>
+        h.timer_id === timerId ? { ...h, effective_hotkey: defaultHotkey } : h
+      );
+      setBossHotkeys(newBossHotkeys);
+    }
+  };
+
   if (!settings) return null;
 
   return (
@@ -450,19 +496,41 @@ function SettingsPage({
           <div className="settings-section-title">全局 / Global</div>
           <div className="hotkey-row">
             <span className="hotkey-label">返回主畫面</span>
-            <HotkeyCapture
-              currentHotkey={settings.back_hotkey}
-              onCapture={(hk) => updateGlobalHotkey("back_hotkey", hk)}
-              onCancel={() => {}}
-            />
+            <div className="hotkey-right">
+              <HotkeyCapture
+                currentHotkey={settings.back_hotkey}
+                onCapture={(hk) => updateGlobalHotkey("back_hotkey", hk)}
+                onCancel={() => {}}
+              />
+              {settings.back_hotkey !== "Alt+Home" && (
+                <button
+                  className="hotkey-reset-btn"
+                  onClick={() => updateGlobalHotkey("back_hotkey", "Alt+Home")}
+                  title="重置 / Reset"
+                >
+                  ↺
+                </button>
+              )}
+            </div>
           </div>
           <div className="hotkey-row">
             <span className="hotkey-label">停止全部</span>
-            <HotkeyCapture
-              currentHotkey={settings.stop_all_hotkey}
-              onCapture={(hk) => updateGlobalHotkey("stop_all_hotkey", hk)}
-              onCancel={() => {}}
-            />
+            <div className="hotkey-right">
+              <HotkeyCapture
+                currentHotkey={settings.stop_all_hotkey}
+                onCapture={(hk) => updateGlobalHotkey("stop_all_hotkey", hk)}
+                onCancel={() => {}}
+              />
+              {settings.stop_all_hotkey !== "Ctrl+0" && (
+                <button
+                  className="hotkey-reset-btn"
+                  onClick={() => updateGlobalHotkey("stop_all_hotkey", "Ctrl+0")}
+                  title="重置 / Reset"
+                >
+                  ↺
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -472,11 +540,22 @@ function SettingsPage({
             {(bossHotkeys[boss.id] || []).map((hk) => (
               <div key={hk.timer_id} className="hotkey-row">
                 <span className="hotkey-label">{hk.timer_name}</span>
-                <HotkeyCapture
-                  currentHotkey={hk.effective_hotkey}
-                  onCapture={(hotkey) => updateTimerHotkey(boss.id, hk.timer_id, hotkey)}
-                  onCancel={() => {}}
-                />
+                <div className="hotkey-right">
+                  <HotkeyCapture
+                    currentHotkey={hk.effective_hotkey}
+                    onCapture={(hotkey) => updateTimerHotkey(boss.id, hk.timer_id, hotkey)}
+                    onCancel={() => {}}
+                  />
+                  {hk.effective_hotkey !== hk.default_hotkey && (
+                    <button
+                      className="hotkey-reset-btn"
+                      onClick={() => resetTimerHotkey(boss.id, hk.timer_id, hk.default_hotkey)}
+                      title="重置 / Reset"
+                    >
+                      ↺
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -534,7 +613,7 @@ function App() {
       setShowPicker(true);
       setShowSettings(false);
       setTimers([]);
-      getCurrentWindow().setSize(SIZE_PICKER);
+      resizeRightAnchored(SIZE_PICKER);
     });
 
     return () => {
@@ -556,7 +635,7 @@ function App() {
     const settings = await invoke<AppSettings>("get_settings");
     setHotkeyOverrides(settings.hotkeys[bossId] || {});
 
-    getCurrentWindow().setSize(resp.mini_mode ? SIZE_DETAIL_MINI : SIZE_DETAIL);
+    resizeRightAnchored(resp.mini_mode ? SIZE_DETAIL_MINI : SIZE_DETAIL);
   };
 
   const goBackToMain = useCallback(async () => {
@@ -566,7 +645,7 @@ function App() {
     setShowPicker(true);
     setShowSettings(false);
     setTimers([]);
-    getCurrentWindow().setSize(SIZE_PICKER);
+    resizeRightAnchored(SIZE_PICKER);
   }, []);
 
   const handleHideTimer = async (timerId: string) => {
@@ -593,7 +672,7 @@ function App() {
     const newMode = !miniMode;
     await invoke("set_mini_mode", { enabled: newMode });
     setMiniMode(newMode);
-    getCurrentWindow().setSize(newMode ? SIZE_DETAIL_MINI : SIZE_DETAIL);
+    resizeRightAnchored(newMode ? SIZE_DETAIL_MINI : SIZE_DETAIL);
   };
 
   const closeApp = () => {
@@ -607,7 +686,7 @@ function App() {
         bosses={bosses}
         onBack={() => {
           setShowSettings(false);
-          getCurrentWindow().setSize(SIZE_PICKER);
+          resizeRightAnchored(SIZE_PICKER);
         }}
       />
     );
@@ -658,7 +737,7 @@ function App() {
           className="settings-link"
           onClick={() => {
             setShowSettings(true);
-            getCurrentWindow().setSize(SIZE_SETTINGS);
+            resizeRightAnchored(SIZE_SETTINGS);
           }}
         >
           快捷鍵設定 / Hotkey Settings
