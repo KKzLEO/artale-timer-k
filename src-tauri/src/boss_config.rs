@@ -23,6 +23,8 @@ pub struct BossInfo {
 pub struct TimerDef {
     pub id: String,
     pub name: String,
+    #[serde(default = "default_icon")]
+    pub icon: String,
     pub duration_secs: f64,
     #[serde(default)]
     pub hotkey: Option<String>,
@@ -34,6 +36,10 @@ pub struct TimerDef {
     pub warning_secs: f64,
     #[serde(default)]
     pub repeat: bool,
+}
+
+fn default_icon() -> String {
+    "⏱".to_string()
 }
 
 fn default_color() -> String {

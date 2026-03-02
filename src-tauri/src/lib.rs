@@ -7,6 +7,7 @@ mod tray;
 
 use boss_config::{load_all_bosses, BossConfig};
 use settings::AppSettings;
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -40,16 +41,63 @@ fn get_settings_path(app: &AppHandle) -> PathBuf {
 }
 
 fn ensure_default_bosses(bosses_dir: &PathBuf) {
-    if bosses_dir.exists() && fs::read_dir(bosses_dir).map_or(false, |mut d| d.next().is_some()) {
-        return;
-    }
     fs::create_dir_all(bosses_dir).ok();
 
-    let zakum = include_str!("../resources/bosses/zakum.toml");
-    let horntail = include_str!("../resources/bosses/horntail.toml");
+    // Remove legacy boss configs
+    for old in &["zakum.toml", "horntail.toml"] {
+        let p = bosses_dir.join(old);
+        if p.exists() {
+            fs::remove_file(&p).ok();
+        }
+    }
 
-    fs::write(bosses_dir.join("zakum.toml"), zakum).ok();
-    fs::write(bosses_dir.join("horntail.toml"), horntail).ok();
+    let ccq_path = bosses_dir.join("chaos_crimson_queen.toml");
+    if !ccq_path.exists() {
+        let ccq = include_str!("../resources/bosses/chaos_crimson_queen.toml");
+        fs::write(&ccq_path, ccq).ok();
+    }
+
+    let lotus_path = bosses_dir.join("hard_lotus.toml");
+    if !lotus_path.exists() {
+        let lotus = include_str!("../resources/bosses/hard_lotus.toml");
+        fs::write(&lotus_path, lotus).ok();
+    }
+}
+
+/// Re-register shortcuts for the currently active boss, filtering hidden timers.
+pub fn re_register_shortcuts_for_active_boss(
+    app: &AppHandle,
+    boss_id: &str,
+    config: &BossConfig,
+    settings: &AppSettings,
+) {
+    let hidden = settings
+        .hidden_timers
+        .get(boss_id)
+        .cloned()
+        .unwrap_or_default();
+
+    let visible_timers: Vec<_> = config
+        .timers
+        .iter()
+        .filter(|t| !hidden.contains(&t.id))
+        .cloned()
+        .collect();
+
+    let hotkey_overrides = settings
+        .hotkeys
+        .get(boss_id)
+        .cloned()
+        .unwrap_or_default();
+
+    shortcuts::register_boss_shortcuts(
+        app,
+        boss_id,
+        &visible_timers,
+        &hotkey_overrides,
+        &settings.stop_all_hotkey,
+        &settings.back_hotkey,
+    );
 }
 
 #[tauri::command]
@@ -74,12 +122,20 @@ struct BossListItem {
     timer_count: usize,
 }
 
+#[derive(serde::Serialize)]
+struct SelectBossResponse {
+    config: BossConfig,
+    hidden_timers: Vec<String>,
+    muted_timers: Vec<String>,
+    mini_mode: bool,
+}
+
 #[tauri::command]
 async fn select_boss(
     boss_id: String,
     app: AppHandle,
     state: State<'_, AppState>,
-) -> Result<BossConfig, String> {
+) -> Result<SelectBossResponse, String> {
     let bosses = state.bosses.lock().await;
     let (_, config) = bosses
         .iter()
@@ -91,38 +147,170 @@ async fn select_boss(
     // Stop all running timers
     state.timer_engine.stop_all().await;
 
-    // Load timer defs
-    state
-        .timer_engine
-        .load_timer_defs(config.timers.clone())
-        .await;
-
-    // Get hotkey overrides from settings
+    // Get settings
     let settings = state.settings.lock().await;
-    let hotkey_overrides = settings
-        .hotkeys
+    let hidden = settings
+        .hidden_timers
         .get(&boss_id)
         .cloned()
         .unwrap_or_default();
-    let stop_all_hotkey = settings.stop_all_hotkey.clone();
-    let back_hotkey = settings.back_hotkey.clone();
-    drop(settings);
+    let muted = settings
+        .muted_timers
+        .get(&boss_id)
+        .cloned()
+        .unwrap_or_default();
+    let mini_mode = settings.mini_mode;
 
-    // Register global shortcuts for this boss
-    shortcuts::register_boss_shortcuts(
-        &app,
-        &boss_id,
-        &config.timers,
-        &hotkey_overrides,
-        &stop_all_hotkey,
-        &back_hotkey,
-    );
+    // Load only non-hidden timer defs
+    let visible_timers: Vec<_> = config
+        .timers
+        .iter()
+        .filter(|t| !hidden.contains(&t.id))
+        .cloned()
+        .collect();
+
+    state
+        .timer_engine
+        .load_timer_defs(visible_timers)
+        .await;
+
+    // Load muted defs into engine
+    state
+        .timer_engine
+        .set_muted_defs(muted.iter().cloned().collect::<HashSet<_>>())
+        .await;
+
+    // Register shortcuts
+    re_register_shortcuts_for_active_boss(&app, &boss_id, &config, &settings);
+    drop(settings);
 
     // Set active boss
     let mut active = state.active_boss.lock().await;
     *active = Some(boss_id);
 
-    Ok(config)
+    Ok(SelectBossResponse {
+        config,
+        hidden_timers: hidden,
+        muted_timers: muted,
+        mini_mode,
+    })
+}
+
+#[tauri::command]
+async fn hide_timer(
+    boss_id: String,
+    timer_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut settings = state.settings.lock().await;
+
+    let hidden = settings.hidden_timers.entry(boss_id.clone()).or_default();
+    if !hidden.contains(&timer_id) {
+        hidden.push(timer_id);
+    }
+
+    settings::save_settings(&state.settings_path, &settings)?;
+
+    // Re-register shortcuts if this is the active boss
+    let active = state.active_boss.lock().await;
+    if active.as_deref() == Some(&boss_id) {
+        let bosses = state.bosses.lock().await;
+        if let Some((_, config)) = bosses.iter().find(|(id, _)| id == &boss_id) {
+            let visible_timers: Vec<_> = config
+                .timers
+                .iter()
+                .filter(|t| {
+                    !settings
+                        .hidden_timers
+                        .get(&boss_id)
+                        .map_or(false, |h| h.contains(&t.id))
+                })
+                .cloned()
+                .collect();
+
+            // Reload visible timer defs into engine
+            state.timer_engine.load_timer_defs(visible_timers).await;
+
+            re_register_shortcuts_for_active_boss(&app, &boss_id, config, &settings);
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn reset_hidden_timers(
+    boss_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut settings = state.settings.lock().await;
+
+    settings.hidden_timers.remove(&boss_id);
+
+    settings::save_settings(&state.settings_path, &settings)?;
+
+    // Re-register shortcuts if this is the active boss
+    let active = state.active_boss.lock().await;
+    if active.as_deref() == Some(&boss_id) {
+        let bosses = state.bosses.lock().await;
+        if let Some((_, config)) = bosses.iter().find(|(id, _)| id == &boss_id) {
+            // All timers are now visible
+            state
+                .timer_engine
+                .load_timer_defs(config.timers.clone())
+                .await;
+
+            re_register_shortcuts_for_active_boss(&app, &boss_id, config, &settings);
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_mini_mode(
+    enabled: bool,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut settings = state.settings.lock().await;
+    settings.mini_mode = enabled;
+    settings::save_settings(&state.settings_path, &settings)?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn toggle_mute_timer(
+    boss_id: String,
+    timer_id: String,
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
+    let mut settings = state.settings.lock().await;
+
+    let muted_list = settings.muted_timers.entry(boss_id).or_default();
+    let is_muted = if let Some(pos) = muted_list.iter().position(|id| id == &timer_id) {
+        muted_list.remove(pos);
+        false
+    } else {
+        muted_list.push(timer_id);
+        true
+    };
+
+    settings::save_settings(&state.settings_path, &settings)?;
+
+    // Update engine muted set
+    let active = state.active_boss.lock().await;
+    if let Some(active_id) = active.as_ref() {
+        let muted_set: HashSet<String> = settings
+            .muted_timers
+            .get(active_id)
+            .map(|v| v.iter().cloned().collect())
+            .unwrap_or_default();
+        state.timer_engine.set_muted_defs(muted_set).await;
+    }
+
+    Ok(is_muted)
 }
 
 #[tauri::command]
@@ -217,23 +405,7 @@ async fn save_settings(
         drop(active_boss);
         let bosses = state.bosses.lock().await;
         if let Some((_, config)) = bosses.iter().find(|(id, _)| id == &boss_id) {
-            let timers = config.timers.clone();
-            drop(bosses);
-
-            let hotkey_overrides = new_settings
-                .hotkeys
-                .get(&boss_id)
-                .cloned()
-                .unwrap_or_default();
-
-            shortcuts::register_boss_shortcuts(
-                &app,
-                &boss_id,
-                &timers,
-                &hotkey_overrides,
-                &new_settings.stop_all_hotkey,
-                &new_settings.back_hotkey,
-            );
+            re_register_shortcuts_for_active_boss(&app, &boss_id, config, &new_settings);
         }
     }
 
@@ -296,7 +468,7 @@ pub fn run() {
                 fs::create_dir_all(parent).ok();
             }
 
-            // Copy default boss configs on first run
+            // Copy default boss configs if missing
             ensure_default_bosses(&bosses_dir);
 
             // Load all boss configs
@@ -342,6 +514,10 @@ pub fn run() {
             get_settings,
             save_settings,
             get_boss_hotkeys,
+            hide_timer,
+            reset_hidden_timers,
+            set_mini_mode,
+            toggle_mute_timer,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

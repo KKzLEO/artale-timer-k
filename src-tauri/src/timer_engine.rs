@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tauri::Emitter;
 use tokio::sync::Mutex;
@@ -19,16 +19,16 @@ pub enum TimerState {
 pub struct Timer {
     pub id: String,
     pub name: String,
+    pub icon: String,
     pub duration: f64,
     pub remaining: f64,
     pub state: TimerState,
     pub color: String,
     pub chain_to: Option<String>,
     pub warning_secs: f64,
+    pub def_id: String,
     #[serde(skip)]
     pub warning_played: bool,
-    #[serde(skip)]
-    pub def_id: String,
     #[serde(skip)]
     pub repeat: bool,
 }
@@ -52,6 +52,7 @@ pub struct TimerExpiredEvent {
 pub struct TimerEngine {
     timers: Arc<Mutex<HashMap<String, Timer>>>,
     timer_defs: Arc<Mutex<HashMap<String, TimerDef>>>,
+    muted_defs: Arc<Mutex<HashSet<String>>>,
 }
 
 impl TimerEngine {
@@ -59,7 +60,18 @@ impl TimerEngine {
         Self {
             timers: Arc::new(Mutex::new(HashMap::new())),
             timer_defs: Arc::new(Mutex::new(HashMap::new())),
+            muted_defs: Arc::new(Mutex::new(HashSet::new())),
         }
+    }
+
+    pub async fn set_muted_defs(&self, defs: HashSet<String>) {
+        let mut muted = self.muted_defs.lock().await;
+        *muted = defs;
+    }
+
+    pub async fn is_muted(&self, def_id: &str) -> bool {
+        let muted = self.muted_defs.lock().await;
+        muted.contains(def_id)
     }
 
     pub async fn load_timer_defs(&self, defs: Vec<TimerDef>) {
@@ -82,14 +94,15 @@ impl TimerEngine {
         let timer = Timer {
             id: id.clone(),
             name: def.name.clone(),
+            icon: def.icon.clone(),
             duration: def.duration_secs,
             remaining: def.duration_secs,
             state: TimerState::Running,
             color: def.color.clone(),
             chain_to: def.chain_to.clone(),
             warning_secs: def.warning_secs,
-            warning_played: false,
             def_id: timer_def_id.to_string(),
+            warning_played: false,
             repeat: def.repeat,
         };
 
@@ -117,11 +130,11 @@ impl TimerEngine {
         }
     }
 
-    /// Tick all timers by delta_secs. Returns list of expired timer events and whether any new warning was triggered.
-    pub async fn tick(&self, delta_secs: f64) -> (TimerUpdate, Vec<TimerExpiredEvent>, bool) {
+    /// Tick all timers by delta_secs. Returns timer update, expired events, and def_ids that triggered warnings.
+    pub async fn tick(&self, delta_secs: f64) -> (TimerUpdate, Vec<TimerExpiredEvent>, Vec<String>) {
         let mut timers = self.timers.lock().await;
         let mut expired_events = Vec::new();
-        let mut new_warning = false;
+        let mut warning_def_ids = Vec::new();
 
         for timer in timers.values_mut() {
             if timer.state == TimerState::Expired {
@@ -140,12 +153,14 @@ impl TimerEngine {
                 });
             } else if timer.remaining <= timer.warning_secs {
                 if timer.state != TimerState::Warning {
-                    new_warning = true;
+                    warning_def_ids.push(timer.def_id.clone());
                 }
                 timer.state = TimerState::Warning;
                 if !timer.warning_played {
                     timer.warning_played = true;
-                    new_warning = true;
+                    if !warning_def_ids.contains(&timer.def_id) {
+                        warning_def_ids.push(timer.def_id.clone());
+                    }
                 }
             }
         }
@@ -154,7 +169,7 @@ impl TimerEngine {
             timers: timers.values().cloned().collect(),
         };
 
-        (update, expired_events, new_warning)
+        (update, expired_events, warning_def_ids)
     }
 
     /// Remove expired timers that have been expired for longer than linger_secs
@@ -202,24 +217,33 @@ pub fn start_tick_loop(
         loop {
             ticker.tick().await;
 
-            let (update, expired_events, new_warning) = engine.tick(delta).await;
+            let (update, expired_events, warning_def_ids) = engine.tick(delta).await;
 
             // Emit timer update to frontend
             let _ = app_handle.emit("timer-update", &update);
 
-            // Play warning sound
-            if new_warning {
-                crate::sound::play_warning_beep();
+            // Play warning sound for non-muted timers
+            for def_id in &warning_def_ids {
+                if !engine.is_muted(def_id).await {
+                    crate::sound::play_warning_beep();
+                    break; // one beep is enough per tick
+                }
             }
 
-            // Emit expired events and play sound
+            // Emit expired events and play sound for non-muted timers
             for event in &expired_events {
                 let _ = app_handle.emit("timer-expired", event);
-                crate::sound::play_expired_beep();
+                if !engine.is_muted(&event.def_id).await {
+                    crate::sound::play_expired_beep();
+                }
             }
 
             // Handle chain triggers and auto-repeat
             for event in expired_events {
+                if event.chain_to.is_some() || event.repeat {
+                    // Remove the expired timer immediately before restarting
+                    engine.stop_timer(&event.id).await;
+                }
                 if let Some(chain_to) = event.chain_to {
                     let _ = engine.start_timer(&chain_to).await;
                 } else if event.repeat {

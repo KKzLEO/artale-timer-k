@@ -13,87 +13,7 @@ html, body, #root {
   height: 100%;
 }
 
-/* Root stays transparent — only cards/panels have visible backgrounds */
-
-.overlay-container {
-  padding: 4px;
-  pointer-events: none;
-}
-
-.timer-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.timer-item {
-  background: rgba(0, 0, 0, 0.75);
-  border-radius: 6px;
-  padding: 6px 10px;
-  border-left: 3px solid transparent;
-  transition: opacity 0.3s ease;
-}
-
-.timer-running {
-  border-left-color: #4ECDC4;
-}
-
-.timer-warning {
-  border-left-color: #FFE66D;
-  animation: pulse 0.5s ease-in-out infinite alternate;
-}
-
-.timer-expired {
-  border-left-color: #FF6B6B;
-  animation: flash 0.3s ease-in-out infinite alternate;
-  opacity: 0.8;
-}
-
-.timer-bar-bg {
-  width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 2px;
-  overflow: hidden;
-  margin-bottom: 4px;
-}
-
-.timer-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.1s linear;
-}
-
-.timer-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.timer-name {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 13px;
-  font-weight: 500;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-.timer-time {
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
-  min-width: 48px;
-  text-align: right;
-}
-
-.timer-warning .timer-time {
-  color: #FFE66D;
-}
-
-.timer-expired .timer-time {
-  color: #FF6B6B;
-  font-size: 14px;
-}
+/* ===== Animations ===== */
 
 @keyframes pulse {
   from { opacity: 0.85; }
@@ -105,22 +25,24 @@ html, body, #root {
   to { opacity: 1; }
 }
 
-/* Boss Picker */
+/* ===== Boss Picker ===== */
+
 .boss-picker {
   background: rgba(20, 20, 30, 0.95);
   border-radius: 12px;
-  padding: 24px;
+  padding: 0 24px 24px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   pointer-events: auto;
 }
 
-/* Window Header (draggable title bar) */
+/* ===== Window Header (draggable title bar) ===== */
+
 .window-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin: 0 -24px;
-  padding: 12px 14px 8px 24px;
+  padding: 18px 14px 10px 24px;
   cursor: grab;
   border-radius: 12px 12px 0 0;
   flex-shrink: 0;
@@ -128,6 +50,38 @@ html, body, #root {
 
 .window-header:active {
   cursor: grabbing;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.header-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.header-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.header-btn-on {
+  color: #4ECDC4;
+  background: rgba(78, 205, 196, 0.15);
 }
 
 .close-btn {
@@ -219,68 +173,8 @@ html, body, #root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Overlay Drag Handle */
-.overlay-drag-handle {
-  pointer-events: auto;
-  cursor: grab;
-  width: 100%;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 4px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.5);
-}
+/* ===== Settings Link ===== */
 
-.overlay-drag-handle:hover {
-  background: rgba(0, 0, 0, 0.7);
-}
-
-.overlay-drag-handle:active {
-  cursor: grabbing;
-}
-
-.drag-dots {
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 10px;
-  letter-spacing: 2px;
-  line-height: 1;
-}
-
-/* Status Badge */
-.status-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 12px;
-  padding: 5px 12px;
-  margin-bottom: 8px;
-  pointer-events: auto;
-  cursor: pointer;
-  width: fit-content;
-}
-
-.status-badge:hover {
-  background: rgba(0, 0, 0, 0.8);
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #4ECDC4;
-  animation: pulse 1.5s ease-in-out infinite alternate;
-}
-
-.status-text {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 11px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-/* Settings Link */
 .settings-link {
   display: block;
   width: 100%;
@@ -298,11 +192,406 @@ html, body, #root {
   color: rgba(78, 205, 196, 1);
 }
 
-/* Settings Page */
+/* ===== HUD Detail (Normal Mode) — transparent overlay ===== */
+
+.hud-detail {
+  pointer-events: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 4px 6px;
+  cursor: grab;
+}
+
+.hud-header:active {
+  cursor: grabbing;
+}
+
+.hud-boss-name {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.hud-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.hud-btn {
+  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.hud-btn:hover {
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.hud-btn-close:hover {
+  background: rgba(255, 80, 80, 0.4);
+  color: #FF6B6B;
+}
+
+.mechanic-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 0;
+}
+
+/* ===== MechanicRow (HUD compact) ===== */
+
+.mechanic-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 4px;
+  padding: 5px 8px;
+  border-left: 2px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.15s ease;
+}
+
+.mechanic-idle {
+  border-left-color: rgba(255, 255, 255, 0.1);
+  opacity: 0.7;
+}
+
+.mechanic-active {
+  border-left-color: #4ECDC4;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 1;
+}
+
+.mechanic-warning {
+  border-left-color: #FFE66D;
+  animation: pulse 0.5s ease-in-out infinite alternate;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.mechanic-expired {
+  border-left-color: #FF6B6B;
+  animation: flash 0.3s ease-in-out infinite alternate;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* -- Skill Icon Frame (MapleStory buff style: light bg, thin gray border) -- */
+.mechanic-icon {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: linear-gradient(180deg, #f2efe9 0%, #e4e0d8 100%);
+  border: 1.5px solid #bbb8b0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.mechanic-active .mechanic-icon {
+  border-color: #4ECDC4;
+  box-shadow: 0 0 5px rgba(78, 205, 196, 0.3), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.mechanic-warning .mechanic-icon {
+  border-color: #FFE66D;
+  box-shadow: 0 0 5px rgba(255, 230, 109, 0.35), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.mechanic-expired .mechanic-icon {
+  border-color: #FF6B6B;
+  box-shadow: 0 0 5px rgba(255, 107, 107, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.mechanic-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.mechanic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.mechanic-name {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.mechanic-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mechanic-hotkey {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+  padding: 0 4px;
+  color: rgba(78, 205, 196, 0.7);
+  font-size: 9px;
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+}
+
+.mechanic-mute-btn {
+  background: none;
+  border: none;
+  font-size: 11px;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  opacity: 0.5;
+}
+
+.mechanic-mute-btn:hover {
+  opacity: 1;
+}
+
+.mechanic-muted {
+  opacity: 0.8;
+}
+
+.mechanic-hide-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 10px;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.mechanic-hide-btn:hover {
+  background: rgba(255, 80, 80, 0.2);
+  color: #FF6B6B;
+}
+
+.mechanic-bar-bg {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 1px;
+  overflow: hidden;
+  margin-bottom: 1px;
+}
+
+.mechanic-bar-fill {
+  height: 100%;
+  border-radius: 1px;
+  transition: width 0.1s linear;
+}
+
+.mechanic-time {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.mechanic-active .mechanic-time {
+  color: #fff;
+  font-weight: 600;
+}
+
+.mechanic-warning .mechanic-time {
+  color: #FFE66D;
+  font-weight: 700;
+}
+
+.mechanic-expired .mechanic-time {
+  color: #FF6B6B;
+  font-weight: 700;
+}
+
+/* ===== Buff Bar (Mini Mode) — single vertical column ===== */
+
+.buff-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 2px;
+  pointer-events: auto;
+}
+
+.buff-bar-drag {
+  width: 100%;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.buff-bar-drag:active {
+  cursor: grabbing;
+}
+
+.buff-bar-grip {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 8px;
+  line-height: 1;
+}
+
+.buff-bar-actions {
+  margin-top: 1px;
+}
+
+.buff-bar-btn {
+  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 14px;
+  width: 48px;
+  height: 16px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.buff-bar-btn:hover {
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* -- Buff Icon (32x32, MapleStory buff-bar style) -- */
+
+.buff-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 5px;
+  position: relative;
+  background: linear-gradient(180deg, #f2efe9 0%, #e4e0d8 100%);
+  border: 1.5px solid #bbb8b0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.buff-emoji {
+  font-size: 20px;
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.buff-secs {
+  color: #333;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+  line-height: 1;
+  position: relative;
+  z-index: 3;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.9);
+}
+
+/* Clockwise sweep overlay */
+.buff-sweep {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* -- Buff state styles -- */
+.buff-idle {
+  opacity: 0.55;
+}
+
+.buff-idle .buff-secs {
+  color: #999;
+}
+
+.buff-active {
+  border-color: #4ECDC4;
+  box-shadow: 0 0 6px rgba(78, 205, 196, 0.35), 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.buff-active .buff-secs {
+  color: #1a6e68;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.9);
+}
+
+.buff-warning {
+  border-color: #e6b800;
+  animation: pulse 0.5s ease-in-out infinite alternate;
+  box-shadow: 0 0 6px rgba(230, 184, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.buff-warning .buff-secs {
+  color: #8a6d00;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.9);
+}
+
+.buff-expired {
+  border-color: #FF6B6B;
+  animation: flash 0.3s ease-in-out infinite alternate;
+  box-shadow: 0 0 6px rgba(255, 107, 107, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.buff-expired .buff-secs {
+  color: #cc3333;
+  font-size: 12px;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.9);
+}
+
+/* ===== Settings Page ===== */
+
 .settings-page {
   background: rgba(20, 20, 30, 0.95);
   border-radius: 12px;
-  padding: 0 24px;
+  padding: 0 24px 0;
   max-height: 100vh;
   border: 1px solid rgba(255, 255, 255, 0.1);
   pointer-events: auto;

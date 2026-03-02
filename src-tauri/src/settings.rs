@@ -14,6 +14,18 @@ pub struct AppSettings {
     /// Per-boss hotkey overrides: boss_id -> (timer_id -> hotkey)
     #[serde(default)]
     pub hotkeys: HashMap<String, HashMap<String, String>>,
+
+    /// Per-boss hidden timer IDs: boss_id -> list of timer IDs
+    #[serde(default)]
+    pub hidden_timers: HashMap<String, Vec<String>>,
+
+    /// Per-boss muted timer IDs: boss_id -> list of timer IDs
+    #[serde(default)]
+    pub muted_timers: HashMap<String, Vec<String>>,
+
+    /// Global mini mode toggle
+    #[serde(default)]
+    pub mini_mode: bool,
 }
 
 fn default_back_hotkey() -> String {
@@ -30,6 +42,9 @@ impl Default for AppSettings {
             back_hotkey: default_back_hotkey(),
             stop_all_hotkey: default_stop_all_hotkey(),
             hotkeys: HashMap::new(),
+            hidden_timers: HashMap::new(),
+            muted_timers: HashMap::new(),
+            mini_mode: false,
         }
     }
 }

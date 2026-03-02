@@ -1,0 +1,28 @@
+# 殘暴炎魔 (Chaos Crimson Queen) - Boss 計時器設定
+
+[boss]
+name = "殘暴炎魔"
+description = "Chaos Crimson Queen"
+
+[[timers]]
+id = "system_cube"
+name = "系統魔方"
+icon = "🎲"
+duration_secs = 150.0
+hotkey = "F7"
+color = "#4ECDC4"
+warning_secs = 5.0
+repeat = true
+
+[[timers]]
+id = "dark_water"
+name = "黑水"
+icon = "💧"
+duration_secs = 40.0
+hotkey = "F8"
+color = "#6C5CE7"
+warning_secs = 5.0
+repeat = false
+
+[display]
+opacity = 0.85

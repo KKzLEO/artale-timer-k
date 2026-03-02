@@ -1,0 +1,58 @@
+# 困難拉圖斯 (Hard Lotus) - Boss 計時器設定
+
+[boss]
+name = "困難拉圖斯"
+description = "Hard Lotus"
+
+[[timers]]
+id = "system_deduction"
+name = "系統扣時"
+icon = "⏱"
+duration_secs = 10.0
+hotkey = "F7"
+color = "#FF6B6B"
+warning_secs = 3.0
+repeat = true
+
+[[timers]]
+id = "dark_water_countdown"
+name = "黑水倒數"
+icon = "💧"
+duration_secs = 70.0
+hotkey = "F8"
+color = "#6C5CE7"
+warning_secs = 5.0
+repeat = true
+
+[[timers]]
+id = "dark_orb_end"
+name = "黑球結束"
+icon = "⚫"
+duration_secs = 14.0
+hotkey = "F9"
+color = "#2D3436"
+warning_secs = 3.0
+repeat = false
+
+[[timers]]
+id = "minion_summon"
+name = "小怪召喚"
+icon = "👾"
+duration_secs = 50.0
+hotkey = "F10"
+color = "#00B894"
+warning_secs = 5.0
+repeat = true
+
+[[timers]]
+id = "reflect_shield"
+name = "反盾"
+icon = "🛡"
+duration_secs = 120.0
+hotkey = "F11"
+color = "#FDCB6E"
+warning_secs = 5.0
+repeat = true
+
+[display]
+opacity = 0.85

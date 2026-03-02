@@ -80,33 +80,39 @@ pub fn setup_tray(app: &AppHandle, boss_list: &[(String, String)]) -> tauri::Res
                             if let Some((_, config)) =
                                 bosses.iter().find(|(id, _)| id == &boss_id)
                             {
-                                let timers = config.timers.clone();
+                                let config = config.clone();
                                 drop(bosses);
 
                                 state.timer_engine.stop_all().await;
-                                state.timer_engine.load_timer_defs(timers.clone()).await;
+
+                                let settings = state.settings.lock().await;
+                                let hidden = settings
+                                    .hidden_timers
+                                    .get(&boss_id)
+                                    .cloned()
+                                    .unwrap_or_default();
+
+                                let visible_timers: Vec<_> = config
+                                    .timers
+                                    .iter()
+                                    .filter(|t| !hidden.contains(&t.id))
+                                    .cloned()
+                                    .collect();
+
+                                state
+                                    .timer_engine
+                                    .load_timer_defs(visible_timers)
+                                    .await;
 
                                 let mut active = state.active_boss.lock().await;
                                 *active = Some(boss_id.clone());
                                 drop(active);
 
-                                let settings = state.settings.lock().await;
-                                let hotkey_overrides = settings
-                                    .hotkeys
-                                    .get(&boss_id)
-                                    .cloned()
-                                    .unwrap_or_default();
-                                let stop_all_hotkey = settings.stop_all_hotkey.clone();
-                                let back_hotkey = settings.back_hotkey.clone();
-                                drop(settings);
-
-                                crate::shortcuts::register_boss_shortcuts(
+                                crate::re_register_shortcuts_for_active_boss(
                                     &app,
                                     &boss_id,
-                                    &timers,
-                                    &hotkey_overrides,
-                                    &stop_all_hotkey,
-                                    &back_hotkey,
+                                    &config,
+                                    &settings,
                                 );
                             }
                         });
