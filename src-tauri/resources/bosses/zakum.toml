@@ -1,0 +1,36 @@
+# 乂氣法師 (Zakum) - Boss 計時器設定
+# 此為範例設定檔，請依實際 Boss 機制調整秒數
+
+[boss]
+name = "Zakum"
+description = "扎昆 - 火山地帶 Boss"
+
+[[timers]]
+id = "arms_attack"
+name = "手臂攻擊"
+duration_secs = 15.0
+hotkey = "Ctrl+1"
+color = "#FF6B6B"
+warning_secs = 3.0
+repeat = true
+
+[[timers]]
+id = "summon"
+name = "召喚小怪"
+duration_secs = 30.0
+hotkey = "Ctrl+2"
+color = "#4ECDC4"
+warning_secs = 5.0
+repeat = true
+
+[[timers]]
+id = "body_slam"
+name = "全屏攻擊"
+duration_secs = 45.0
+hotkey = "Ctrl+3"
+color = "#FFE66D"
+warning_secs = 5.0
+chain_to = "arms_attack"
+
+[display]
+opacity = 0.85
