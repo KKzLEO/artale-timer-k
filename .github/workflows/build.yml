@@ -14,10 +14,10 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            args: --target universal-apple-darwin
+            args: --target universal-apple-darwin -b app
             rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
           - platform: windows-latest
-            args: ''
+            args: -b nsis
             rust-targets: ''
     runs-on: ${{ matrix.platform }}
 
@@ -32,15 +32,29 @@ jobs:
         with:
           targets: ${{ matrix.rust-targets }}
 
-      - name: Install dependencies (npm)
+      - name: Install dependencies
         run: npm install
 
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        run: npx tauri build ${{ matrix.args }}
+
+      # macOS: zip the portable .app bundle
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd src-tauri/target/universal-apple-darwin/release/bundle/macos
+          zip -ry "$GITHUB_WORKSPACE/Artale-Timer-macOS-universal.zip" "artale-timer.app"
+
+      # Windows: zip the portable .exe
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "src-tauri\target\release\artale-timer.exe" -DestinationPath "Artale-Timer-Windows-x64.zip"
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Artale Timer ${{ github.ref_name }}'
-          releaseDraft: true
-          prerelease: false
-          args: ${{ matrix.args }}
+          draft: true
+          name: 'Artale Timer ${{ github.ref_name }}'
+          files: Artale-Timer-*.zip
