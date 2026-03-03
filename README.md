@@ -1,7 +1,36 @@
-# Tauri + React + Typescript
+# Artale Timer
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+MapleStory Artale Boss 機制計時器，支援 macOS 與 Windows。
 
-## Recommended IDE Setup
+## 下載
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+前往 [Releases](../../releases) 下載最新版本：
+
+- **macOS**：`Artale-Timer-macOS-universal.zip` — 解壓後直接執行
+- **Windows**：`Artale-Timer-Windows-x64.zip` — 解壓後直接執行
+
+## 說明
+
+本程式目前階段只是由數個已經固定時間且會自動循環的計時器組成，玩家必須自行判斷現在按下計時器的時機。
+
+本程式全部程式碼開源，如有任何安全性問題請自行下載 repo 並 build。
+
+## 困難拉圖斯 (Hard Lotus)
+
+| 機制 | 觸發時機 | 說明 |
+|------|----------|------|
+| 系統扣時 | 89% | 每 10 秒扣一次時間 |
+| 黑水倒數 | 69% | 每 70 秒放一次黑水 |
+| 黑球結束 | 反盾開始時 | 估算黑球爆掉的時間 |
+| 小怪召喚 | 84% | 每 50 秒生成一波小怪，小怪持續 40 秒 |
+| 反盾 | 84% | 每 120 秒會反盾一次 |
+
+## FAQ
+
+### macOS 遇到安全性問題
+
+關掉程式後前往 **系統設定 > 隱私權與安全性**，拉到最下方，選擇「強制打開」。
+
+### Windows 遇到不明來源程式問題
+
+點選「其他資訊」，再選擇「仍要執行」。
