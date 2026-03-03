@@ -34,3 +34,11 @@ MapleStory Artale Boss 機制計時器，支援 macOS 與 Windows。
 ### Windows 遇到不明來源程式問題
 
 點選「其他資訊」，再選擇「仍要執行」。
+
+## 免責聲明
+
+本程式為開源免費軟體，以 [MIT License](LICENSE) 授權。
+
+本程式與 Nexon、MapleStory 或 MapleStory Artale 無任何官方關聯。所有遊戲名稱及商標均為其各自擁有者之財產。
+
+本軟體按「現況」提供，不附帶任何明示或暗示之擔保。使用本程式所產生之任何風險與後果，概由使用者自行承擔。作者不對因使用本軟體而導致之任何損失或損害負責。
