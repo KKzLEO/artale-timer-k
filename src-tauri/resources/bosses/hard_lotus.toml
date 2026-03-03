@@ -6,7 +6,8 @@ description = "Hard Lotus"
 
 [[timers]]
 id = "system_deduction"
-name = "系統扣時"
+name = "系統扣時(89%)"
+description = "89%的時候施放，每10秒扣一次時間"
 icon = "⏱"
 duration_secs = 10.0
 hotkey = "F7"
@@ -16,7 +17,8 @@ repeat = true
 
 [[timers]]
 id = "dark_water_countdown"
-name = "黑水倒數"
+name = "黑水倒數(69%)"
+description = "69%的時候施放，每70秒放一次黑水"
 icon = "💧"
 duration_secs = 70.0
 hotkey = "F8"
@@ -26,7 +28,8 @@ repeat = true
 
 [[timers]]
 id = "dark_orb_end"
-name = "黑球結束"
+name = "黑球結束(反盾開始)"
+description = "拉圖斯放反盾時施放，估算黑球爆掉的時間"
 icon = "⚫"
 duration_secs = 14.0
 hotkey = "F9"
@@ -36,7 +39,8 @@ repeat = false
 
 [[timers]]
 id = "minion_summon"
-name = "小怪召喚"
+name = "小怪召喚(84%)"
+description = "84%的時候施放，每50秒生成一波小怪，小怪持續40秒"
 icon = "👾"
 duration_secs = 50.0
 hotkey = "F10"
@@ -46,7 +50,8 @@ repeat = true
 
 [[timers]]
 id = "reflect_shield"
-name = "反盾"
+name = "反盾(84%)"
+description = "84%的時候施放，每120秒會反盾一次"
 icon = "🛡"
 duration_secs = 120.0
 hotkey = "F11"

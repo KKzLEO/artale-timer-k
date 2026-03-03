@@ -113,7 +113,7 @@ pub fn setup_tray(app: &AppHandle, boss_list: &[(String, String)]) -> tauri::Res
                                     &boss_id,
                                     &config,
                                     &settings,
-                                );
+                                ).await;
                             }
                         });
                     }

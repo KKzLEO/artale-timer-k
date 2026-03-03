@@ -36,6 +36,10 @@ pub struct TimerDef {
     pub warning_secs: f64,
     #[serde(default)]
     pub repeat: bool,
+    #[serde(default)]
+    pub timer_type: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 fn default_icon() -> String {

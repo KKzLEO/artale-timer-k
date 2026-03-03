@@ -173,6 +173,58 @@ html, body, #root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
+/* ===== Homepage Tabs ===== */
+
+.home-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.home-tab {
+  flex: 1;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.home-tab:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.home-tab-active {
+  color: #4ECDC4;
+  border-bottom-color: #4ECDC4;
+}
+
+.home-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.buff-tab-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 /* ===== Settings Link ===== */
 
 .settings-link {
@@ -348,6 +400,34 @@ html, body, #root {
   font-weight: 500;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.mechanic-info-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 10px;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.mechanic-info-btn:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.mechanic-desc {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  line-height: 1.3;
+  margin-bottom: 1px;
 }
 
 .mechanic-right {
@@ -715,4 +795,254 @@ html, body, #root {
 
 .back-btn:hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+/* ===== Buff Management Page ===== */
+
+.buff-empty-state {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  text-align: center;
+  padding: 40px 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.buff-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.buff-card {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: all 0.15s ease;
+}
+
+.buff-card:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.buff-card-disabled {
+  opacity: 0.5;
+}
+
+.buff-card-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.buff-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.buff-card-name {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.buff-card-detail {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.buff-card-hotkey {
+  background: rgba(78, 205, 196, 0.15);
+  border-radius: 3px;
+  padding: 0 5px;
+  color: rgba(78, 205, 196, 0.8);
+  font-size: 11px;
+}
+
+.buff-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.buff-card-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.buff-card-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.buff-card-btn-danger:hover {
+  background: rgba(255, 80, 80, 0.3);
+  color: #FF6B6B;
+}
+
+.buff-delete-confirm {
+  display: flex;
+  gap: 4px;
+}
+
+/* Toggle switch */
+.buff-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.buff-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.buff-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  transition: 0.2s;
+}
+
+.buff-toggle-slider::before {
+  content: "";
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.buff-toggle input:checked + .buff-toggle-slider {
+  background: rgba(78, 205, 196, 0.5);
+}
+
+.buff-toggle input:checked + .buff-toggle-slider::before {
+  transform: translateX(16px);
+  background: #4ECDC4;
+}
+
+/* Footer with multiple buttons */
+.buff-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.buff-add-btn {
+  background: rgba(78, 205, 196, 0.15);
+  color: #4ECDC4;
+  border-color: rgba(78, 205, 196, 0.3);
+}
+
+.buff-add-btn:hover {
+  background: rgba(78, 205, 196, 0.25);
+}
+
+.buff-save-btn {
+  background: rgba(78, 205, 196, 0.15);
+  color: #4ECDC4;
+  border-color: rgba(78, 205, 196, 0.3);
+}
+
+.buff-save-btn:hover {
+  background: rgba(78, 205, 196, 0.25);
+}
+
+/* ===== Buff Form ===== */
+
+.buff-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.buff-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.buff-form-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.buff-form-input {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #fff;
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.buff-form-input:focus {
+  border-color: rgba(78, 205, 196, 0.5);
+}
+
+.buff-form-input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.buff-form-error {
+  color: #FF6B6B;
+  font-size: 12px;
+  padding: 4px 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ===== Buff HUD (floating overlay) ===== */
+
+.buff-hud {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  pointer-events: auto;
+  width: 100%;
+  height: 100%;
+  padding: 2px;
+}
+
+.buff-emoji-text {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+  color: #333;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }

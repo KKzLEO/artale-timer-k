@@ -1,4 +1,6 @@
 mod boss_config;
+mod buff_config;
+pub mod key_listener;
 pub mod settings;
 pub mod shortcuts;
 pub mod sound;
@@ -6,6 +8,7 @@ mod timer_engine;
 mod tray;
 
 use boss_config::{load_all_bosses, BossConfig};
+use buff_config::{BuffConfig, BuffItem};
 use settings::AppSettings;
 use std::collections::HashSet;
 use std::fs;
@@ -22,6 +25,9 @@ pub struct AppState {
     pub bosses_dir: PathBuf,
     pub settings: Arc<Mutex<AppSettings>>,
     pub settings_path: PathBuf,
+    pub buffs: Arc<Mutex<BuffConfig>>,
+    pub buffs_path: PathBuf,
+    pub key_listener: key_listener::KeyListener,
 }
 
 fn get_bosses_dir(app: &AppHandle) -> PathBuf {
@@ -40,6 +46,14 @@ fn get_settings_path(app: &AppHandle) -> PathBuf {
     data_dir.join("settings.toml")
 }
 
+fn get_buffs_path(app: &AppHandle) -> PathBuf {
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .expect("Failed to get app data dir");
+    data_dir.join("buffs.toml")
+}
+
 fn ensure_default_bosses(bosses_dir: &PathBuf) {
     fs::create_dir_all(bosses_dir).ok();
 
@@ -51,53 +65,43 @@ fn ensure_default_bosses(bosses_dir: &PathBuf) {
         }
     }
 
-    let ccq_path = bosses_dir.join("chaos_crimson_queen.toml");
-    if !ccq_path.exists() {
-        let ccq = include_str!("../resources/bosses/chaos_crimson_queen.toml");
-        fs::write(&ccq_path, ccq).ok();
-    }
+    // Always overwrite built-in boss configs with latest defaults
+    let ccq = include_str!("../resources/bosses/chaos_crimson_queen.toml");
+    fs::write(bosses_dir.join("chaos_crimson_queen.toml"), ccq).ok();
 
-    let lotus_path = bosses_dir.join("hard_lotus.toml");
-    if !lotus_path.exists() {
-        let lotus = include_str!("../resources/bosses/hard_lotus.toml");
-        fs::write(&lotus_path, lotus).ok();
-    }
+    let lotus = include_str!("../resources/bosses/hard_lotus.toml");
+    fs::write(bosses_dir.join("hard_lotus.toml"), lotus).ok();
 }
 
 /// Re-register shortcuts for the currently active boss, filtering hidden timers.
-pub fn re_register_shortcuts_for_active_boss(
+/// Also re-registers buff shortcuts (unless monitoring is active).
+pub async fn re_register_shortcuts_for_active_boss(
     app: &AppHandle,
     boss_id: &str,
     config: &BossConfig,
     settings: &AppSettings,
 ) {
-    let hidden = settings
-        .hidden_timers
-        .get(boss_id)
-        .cloned()
-        .unwrap_or_default();
+    let state = app.state::<AppState>();
 
-    let visible_timers: Vec<_> = config
-        .timers
-        .iter()
-        .filter(|t| !hidden.contains(&t.id))
-        .cloned()
-        .collect();
+    // If monitoring is active, only register non-buff shortcuts
+    if state.key_listener.is_running() {
+        shortcuts::register_shortcuts_without_buffs(
+            app,
+            Some(boss_id),
+            Some(config),
+            settings,
+        );
+    } else {
+        let buffs = state.buffs.lock().await.clone();
 
-    let hotkey_overrides = settings
-        .hotkeys
-        .get(boss_id)
-        .cloned()
-        .unwrap_or_default();
-
-    shortcuts::register_boss_shortcuts(
-        app,
-        boss_id,
-        &visible_timers,
-        &hotkey_overrides,
-        &settings.stop_all_hotkey,
-        &settings.back_hotkey,
-    );
+        shortcuts::register_all_shortcuts(
+            app,
+            Some(boss_id),
+            Some(config),
+            settings,
+            &buffs.buffs,
+        );
+    }
 }
 
 #[tauri::command]
@@ -181,7 +185,7 @@ async fn select_boss(
         .await;
 
     // Register shortcuts
-    re_register_shortcuts_for_active_boss(&app, &boss_id, &config, &settings);
+    re_register_shortcuts_for_active_boss(&app, &boss_id, &config, &settings).await;
     drop(settings);
 
     // Set active boss
@@ -232,7 +236,7 @@ async fn hide_timer(
             // Reload visible timer defs into engine
             state.timer_engine.load_timer_defs(visible_timers).await;
 
-            re_register_shortcuts_for_active_boss(&app, &boss_id, config, &settings);
+            re_register_shortcuts_for_active_boss(&app, &boss_id, config, &settings).await;
         }
     }
 
@@ -262,7 +266,7 @@ async fn reset_hidden_timers(
                 .load_timer_defs(config.timers.clone())
                 .await;
 
-            re_register_shortcuts_for_active_boss(&app, &boss_id, config, &settings);
+            re_register_shortcuts_for_active_boss(&app, &boss_id, config, &settings).await;
         }
     }
 
@@ -405,7 +409,7 @@ async fn save_settings(
         drop(active_boss);
         let bosses = state.bosses.lock().await;
         if let Some((_, config)) = bosses.iter().find(|(id, _)| id == &boss_id) {
-            re_register_shortcuts_for_active_boss(&app, &boss_id, config, &new_settings);
+            re_register_shortcuts_for_active_boss(&app, &boss_id, config, &new_settings).await;
         }
     }
 
@@ -453,6 +457,353 @@ async fn get_boss_hotkeys(
     Ok(hotkeys)
 }
 
+#[tauri::command]
+async fn list_buffs(state: State<'_, AppState>) -> Result<Vec<BuffItem>, String> {
+    let config = state.buffs.lock().await;
+    Ok(config.buffs.clone())
+}
+
+#[derive(serde::Deserialize)]
+struct AddBuffPayload {
+    name: String,
+    duration_secs: u32,
+    hotkey: Option<String>,
+}
+
+#[tauri::command]
+async fn add_buff(
+    payload: AddBuffPayload,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<BuffItem, String> {
+    if payload.name.trim().is_empty() {
+        return Err("Buff name cannot be empty".to_string());
+    }
+    if payload.duration_secs == 0 {
+        return Err("Duration must be a positive integer".to_string());
+    }
+
+    let buff = BuffItem {
+        id: uuid::Uuid::new_v4().to_string(),
+        name: payload.name,
+        duration_secs: payload.duration_secs,
+        hotkey: payload.hotkey,
+        enabled: true,
+    };
+
+    let mut config = state.buffs.lock().await;
+    config.buffs.push(buff.clone());
+    buff_config::save_buffs(&state.buffs_path, &config)?;
+    drop(config);
+
+    // Re-register buff shortcuts
+    re_register_buff_shortcuts(&app, &state).await;
+
+    Ok(buff)
+}
+
+#[derive(serde::Deserialize)]
+struct UpdateBuffPayload {
+    id: String,
+    name: Option<String>,
+    duration_secs: Option<u32>,
+    hotkey: Option<Option<String>>,
+    enabled: Option<bool>,
+}
+
+#[tauri::command]
+async fn update_buff(
+    payload: UpdateBuffPayload,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<BuffItem, String> {
+    let mut config = state.buffs.lock().await;
+    let buff = config
+        .buffs
+        .iter_mut()
+        .find(|b| b.id == payload.id)
+        .ok_or_else(|| format!("Buff '{}' not found", payload.id))?;
+
+    if let Some(name) = &payload.name {
+        if name.trim().is_empty() {
+            return Err("Buff name cannot be empty".to_string());
+        }
+        buff.name = name.clone();
+    }
+    if let Some(secs) = payload.duration_secs {
+        if secs == 0 {
+            return Err("Duration must be a positive integer".to_string());
+        }
+        buff.duration_secs = secs;
+    }
+    if let Some(hotkey) = payload.hotkey {
+        buff.hotkey = hotkey;
+    }
+    if let Some(enabled) = payload.enabled {
+        buff.enabled = enabled;
+        // If disabling, stop any running buff timer for this buff
+        if !enabled {
+            let buff_def_id = format!("buff_{}", buff.id);
+            state.timer_engine.stop_by_def_id(&buff_def_id).await;
+        }
+    }
+
+    let updated = buff.clone();
+    buff_config::save_buffs(&state.buffs_path, &config)?;
+    drop(config);
+
+    // Re-register buff shortcuts
+    re_register_buff_shortcuts(&app, &state).await;
+
+    Ok(updated)
+}
+
+#[tauri::command]
+async fn delete_buff(
+    buff_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut config = state.buffs.lock().await;
+    let original_len = config.buffs.len();
+    config.buffs.retain(|b| b.id != buff_id);
+    if config.buffs.len() == original_len {
+        return Err(format!("Buff '{}' not found", buff_id));
+    }
+
+    // Stop any running timer for this buff
+    let buff_def_id = format!("buff_{}", buff_id);
+    state.timer_engine.stop_by_def_id(&buff_def_id).await;
+
+    buff_config::save_buffs(&state.buffs_path, &config)?;
+    drop(config);
+
+    // Re-register buff shortcuts
+    re_register_buff_shortcuts(&app, &state).await;
+
+    Ok(())
+}
+
+async fn re_register_buff_shortcuts(app: &AppHandle, state: &AppState) {
+    let config = state.buffs.lock().await;
+    let settings = state.settings.lock().await;
+    let active_boss = state.active_boss.lock().await;
+
+    // Reload buff timer defs in engine
+    let buff_timer_defs: Vec<boss_config::TimerDef> = config
+        .buffs
+        .iter()
+        .filter(|b| b.enabled)
+        .map(|b| boss_config::TimerDef {
+            id: format!("buff_{}", b.id),
+            name: b.name.clone(),
+            icon: "💠".to_string(),
+            duration_secs: b.duration_secs as f64,
+            hotkey: None,
+            chain_to: None,
+            color: "#4ECDC4".to_string(),
+            warning_secs: 5.0,
+            repeat: false,
+            timer_type: Some("buff".to_string()),
+            description: None,
+        })
+        .collect();
+    state.timer_engine.load_buff_defs(buff_timer_defs).await;
+
+    let boss_config = if let Some(boss_id) = active_boss.as_ref() {
+        let bosses = state.bosses.lock().await;
+        bosses.iter().find(|(id, _)| id == boss_id).map(|(id, c)| (id.clone(), c.clone()))
+    } else {
+        None
+    };
+
+    // If monitoring is active, update KeyListener's hotkey map instead of
+    // re-registering buff shortcuts via global_shortcut
+    if state.key_listener.is_running() {
+        let map = build_buff_hotkey_map(&config.buffs);
+        state.key_listener.update_hotkeys(map);
+
+        // Only register non-buff shortcuts
+        shortcuts::register_shortcuts_without_buffs(
+            app,
+            boss_config.as_ref().map(|(id, _)| id.as_str()),
+            boss_config.as_ref().map(|(_, c)| c),
+            &settings,
+        );
+    } else {
+        shortcuts::register_all_shortcuts(
+            app,
+            boss_config.as_ref().map(|(id, _)| id.as_str()),
+            boss_config.as_ref().map(|(_, c)| c),
+            &settings,
+            &config.buffs,
+        );
+    }
+}
+
+#[tauri::command]
+async fn trigger_buff_timer(
+    buff_id: String,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let def_id = format!("buff_{}", buff_id);
+
+    // If already running, reset
+    if state
+        .timer_engine
+        .has_running_timers_for_def(&def_id)
+        .await
+    {
+        state.timer_engine.stop_by_def_id(&def_id).await;
+    }
+
+    state.timer_engine.start_timer(&def_id).await
+}
+
+/// Build a hotkey→buff_id map from current buff config.
+fn build_buff_hotkey_map(buffs: &[BuffItem]) -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    for b in buffs {
+        if b.enabled {
+            if let Some(ref hk) = b.hotkey {
+                if !hk.is_empty() {
+                    map.insert(hk.clone(), b.id.clone());
+                }
+            }
+        }
+    }
+    map
+}
+
+#[tauri::command]
+async fn start_buff_monitoring(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    if state.key_listener.is_running() {
+        return Ok(());
+    }
+
+    // Build hotkey map
+    let buffs = state.buffs.lock().await;
+    let map = build_buff_hotkey_map(&buffs.buffs);
+    state.key_listener.update_hotkeys(map);
+    drop(buffs);
+
+    // Unregister buff shortcuts from global_shortcut (so they don't consume keys)
+    // Re-register only non-buff shortcuts
+    {
+        let settings = state.settings.lock().await;
+        let active_boss = state.active_boss.lock().await;
+        let bosses = state.bosses.lock().await;
+
+        let boss_config = if let Some(boss_id) = active_boss.as_ref() {
+            bosses.iter().find(|(id, _)| id == boss_id).map(|(id, c)| (id.clone(), c.clone()))
+        } else {
+            None
+        };
+
+        // Register only non-buff shortcuts (global + boss)
+        shortcuts::register_shortcuts_without_buffs(
+            &app,
+            boss_config.as_ref().map(|(id, _)| id.as_str()),
+            boss_config.as_ref().map(|(_, c)| c),
+            &settings,
+        );
+    }
+
+    // Start CGEventTap
+    let app_clone = app.clone();
+    let callback: key_listener::Callback = Arc::new(move |buff_id: String| {
+        let app = app_clone.clone();
+        let def_id = format!("buff_{}", buff_id);
+        tauri::async_runtime::spawn(async move {
+            let state = app.state::<AppState>();
+            if state.timer_engine.has_running_timers_for_def(&def_id).await {
+                state.timer_engine.stop_by_def_id(&def_id).await;
+            }
+            state.timer_engine.stop_expired_by_def_id(&def_id).await;
+            let _ = state.timer_engine.start_timer(&def_id).await;
+        });
+    });
+
+    state.key_listener.start(callback)
+}
+
+#[tauri::command]
+async fn stop_buff_monitoring(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    state.key_listener.stop();
+
+    // Re-register all shortcuts including buff shortcuts via global_shortcut
+    re_register_buff_shortcuts(&app, &state).await;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_monitoring_status(state: State<'_, AppState>) -> Result<bool, String> {
+    Ok(state.key_listener.is_running())
+}
+
+#[tauri::command]
+async fn check_accessibility_permission() -> Result<bool, String> {
+    Ok(key_listener::KeyListener::check_accessibility())
+}
+
+#[tauri::command]
+async fn request_accessibility_permission() -> Result<(), String> {
+    key_listener::KeyListener::request_accessibility();
+    Ok(())
+}
+
+#[tauri::command]
+async fn disable_shortcuts(app: AppHandle) -> Result<(), String> {
+    shortcuts::unregister_all(&app);
+    Ok(())
+}
+
+#[tauri::command]
+async fn enable_shortcuts(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    let settings = state.settings.lock().await.clone();
+    let active_boss = state.active_boss.lock().await.clone();
+    let buffs = state.buffs.lock().await.clone();
+
+    if let Some(boss_id) = active_boss.as_ref() {
+        let bosses = state.bosses.lock().await;
+        let config = bosses
+            .iter()
+            .find(|(id, _)| id == boss_id)
+            .map(|(_, c)| c.clone());
+        drop(bosses);
+
+        if let Some(config) = config {
+            if state.key_listener.is_running() {
+                shortcuts::register_shortcuts_without_buffs(
+                    &app,
+                    Some(boss_id.as_str()),
+                    Some(&config),
+                    &settings,
+                );
+            } else {
+                shortcuts::register_all_shortcuts(
+                    &app,
+                    Some(boss_id.as_str()),
+                    Some(&config),
+                    &settings,
+                    &buffs.buffs,
+                );
+            }
+        }
+    } else {
+        shortcuts::register_all_shortcuts(&app, None, None, &settings, &buffs.buffs);
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -477,6 +828,10 @@ pub fn run() {
             // Load settings
             let app_settings = settings::load_settings(&settings_path);
 
+            // Load buff config
+            let buffs_path = get_buffs_path(&handle);
+            let buff_cfg = buff_config::load_buffs(&buffs_path);
+
             // Build boss list for tray menu
             let boss_list: Vec<(String, String)> = bosses
                 .iter()
@@ -488,17 +843,57 @@ pub fn run() {
             // Start the tick loop
             timer_engine::start_tick_loop(timer_engine.clone(), handle.clone());
 
+            // Load buff timer defs into engine
+            let buff_timer_defs: Vec<boss_config::TimerDef> = buff_cfg
+                .buffs
+                .iter()
+                .filter(|b| b.enabled)
+                .map(|b| boss_config::TimerDef {
+                    id: format!("buff_{}", b.id),
+                    name: b.name.clone(),
+                    icon: "💠".to_string(),
+                    duration_secs: b.duration_secs as f64,
+                    hotkey: None,
+                    chain_to: None,
+                    color: "#4ECDC4".to_string(),
+                    warning_secs: 5.0,
+                    repeat: false,
+                    timer_type: Some("buff".to_string()),
+                    description: None,
+                })
+                .collect();
+            timer_engine::load_buff_defs_sync(&timer_engine, &buff_timer_defs, &handle);
+
             app.manage(AppState {
                 timer_engine,
                 bosses: Arc::new(Mutex::new(bosses)),
                 active_boss: Arc::new(Mutex::new(None)),
                 bosses_dir,
-                settings: Arc::new(Mutex::new(app_settings)),
+                settings: Arc::new(Mutex::new(app_settings.clone())),
                 settings_path,
+                buffs: Arc::new(Mutex::new(buff_cfg.clone())),
+                buffs_path: buffs_path.clone(),
+                key_listener: key_listener::KeyListener::new(),
             });
+
+            // Register buff shortcuts at startup
+            shortcuts::register_buff_shortcuts_only(
+                &handle,
+                &buff_cfg.buffs,
+            );
 
             // Setup system tray (after AppState is managed)
             tray::setup_tray(&handle, &boss_list)?;
+
+            // Exit the entire app when the main overlay window is closed
+            if let Some(overlay) = app.get_webview_window("overlay") {
+                let app_handle = handle.clone();
+                overlay.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { .. } = event {
+                        app_handle.exit(0);
+                    }
+                });
+            }
 
             Ok(())
         })
@@ -518,6 +913,18 @@ pub fn run() {
             reset_hidden_timers,
             set_mini_mode,
             toggle_mute_timer,
+            list_buffs,
+            add_buff,
+            update_buff,
+            delete_buff,
+            trigger_buff_timer,
+            start_buff_monitoring,
+            stop_buff_monitoring,
+            get_monitoring_status,
+            check_accessibility_permission,
+            request_accessibility_permission,
+            disable_shortcuts,
+            enable_shortcuts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

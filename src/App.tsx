@@ -5,10 +5,11 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
 import "./App.css";
 
-const SIZE_PICKER = new LogicalSize(320, 400);
+const SIZE_PICKER = new LogicalSize(320, 440);
 const SIZE_DETAIL = new LogicalSize(250, 500);
 const SIZE_DETAIL_MINI = new LogicalSize(64, 350);
 const SIZE_SETTINGS = new LogicalSize(340, 500);
+const SIZE_BUFF_FORM = new LogicalSize(340, 360);
 
 function startDrag(e: React.MouseEvent) {
   e.preventDefault();
@@ -41,6 +42,7 @@ interface TimerDef {
   color: string;
   warning_secs: number;
   repeat: boolean;
+  description: string | null;
 }
 
 interface BossConfig {
@@ -58,6 +60,7 @@ interface Timer {
   color: string;
   warning_secs: number;
   def_id: string;
+  timer_type: string;
 }
 
 interface TimerUpdate {
@@ -93,6 +96,14 @@ interface SelectBossResponse {
   mini_mode: boolean;
 }
 
+interface BuffItem {
+  id: string;
+  name: string;
+  duration_secs: number;
+  hotkey: string | null;
+  enabled: boolean;
+}
+
 // --- MechanicRow: full-size mechanic display ---
 function MechanicRow({
   def,
@@ -111,6 +122,7 @@ function MechanicRow({
   onToggleMute: () => void;
   miniMode: boolean;
 }) {
+  const [showDesc, setShowDesc] = useState(false);
   const isActive = !!timer;
   const remaining = timer ? Math.max(0, timer.remaining) : def.duration_secs;
   const secs = Math.ceil(remaining);
@@ -131,6 +143,15 @@ function MechanicRow({
         <div className="mechanic-header">
           <span className="mechanic-name">{def.name}</span>
           <div className="mechanic-right">
+            {!miniMode && def.description && (
+              <button
+                className="mechanic-info-btn"
+                onClick={() => setShowDesc((v) => !v)}
+                title="說明 / Info"
+              >
+                {showDesc ? "▴" : "▾"}
+              </button>
+            )}
             {effectiveHotkey && (
               <span className="mechanic-hotkey">{effectiveHotkey}</span>
             )}
@@ -148,6 +169,9 @@ function MechanicRow({
             )}
           </div>
         </div>
+        {showDesc && def.description && (
+          <span className="mechanic-desc">{def.description}</span>
+        )}
         <div className="mechanic-bar-bg">
           <div
             className="mechanic-bar-fill"
@@ -571,6 +595,315 @@ function SettingsPage({
   );
 }
 
+// --- BuffTabContent: inline buff list for homepage tab ---
+function BuffTabContent({
+  onAdd,
+  onEdit,
+}: {
+  onAdd: () => void;
+  onEdit: (buff: BuffItem) => void;
+}) {
+  const [buffs, setBuffs] = useState<BuffItem[]>([]);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  const loadBuffs = useCallback(async () => {
+    const list = await invoke<BuffItem[]>("list_buffs");
+    setBuffs(list);
+  }, []);
+
+  useEffect(() => {
+    loadBuffs();
+  }, [loadBuffs]);
+
+  const handleToggleEnabled = async (buff: BuffItem) => {
+    await invoke<BuffItem>("update_buff", {
+      payload: { id: buff.id, enabled: !buff.enabled },
+    });
+    loadBuffs();
+  };
+
+  const handleDelete = async (buffId: string) => {
+    await invoke("delete_buff", { buffId });
+    setDeleteConfirm(null);
+    loadBuffs();
+  };
+
+  return (
+    <div className="home-tab-content">
+      {buffs.length === 0 ? (
+        <div className="buff-empty-state">
+          尚無 Buff 提醒，點擊下方按鈕新增
+        </div>
+      ) : (
+        <div className="buff-list">
+          {buffs.map((buff) => (
+            <div
+              key={buff.id}
+              className={`buff-card ${!buff.enabled ? "buff-card-disabled" : ""}`}
+            >
+              <div className="buff-card-main">
+                <div className="buff-card-info">
+                  <span className="buff-card-name">{buff.name}</span>
+                  <span className="buff-card-detail">
+                    {buff.duration_secs}s
+                    {buff.hotkey && (
+                      <span className="buff-card-hotkey">{buff.hotkey}</span>
+                    )}
+                  </span>
+                </div>
+                <div className="buff-card-actions">
+                  <label className="buff-toggle">
+                    <input
+                      type="checkbox"
+                      checked={buff.enabled}
+                      onChange={() => handleToggleEnabled(buff)}
+                    />
+                    <span className="buff-toggle-slider" />
+                  </label>
+                  <button
+                    className="buff-card-btn"
+                    onClick={() => onEdit(buff)}
+                    title="編輯"
+                  >
+                    ✎
+                  </button>
+                  {deleteConfirm === buff.id ? (
+                    <div className="buff-delete-confirm">
+                      <button
+                        className="buff-card-btn buff-card-btn-danger"
+                        onClick={() => handleDelete(buff.id)}
+                      >
+                        確定
+                      </button>
+                      <button
+                        className="buff-card-btn"
+                        onClick={() => setDeleteConfirm(null)}
+                      >
+                        取消
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="buff-card-btn buff-card-btn-danger"
+                      onClick={() => setDeleteConfirm(buff.id)}
+                      title="刪除"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="buff-tab-actions">
+        <button className="settings-btn buff-add-btn" onClick={onAdd}>
+          + 新增 Buff
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- BuffFormPage ---
+function BuffFormPage({
+  editBuff,
+  onSave,
+  onCancel,
+}: {
+  editBuff: BuffItem | null;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(editBuff?.name ?? "");
+  const [durationSecs, setDurationSecs] = useState(
+    editBuff?.duration_secs?.toString() ?? ""
+  );
+  const [hotkey, setHotkey] = useState<string | null>(editBuff?.hotkey ?? null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setError("請輸入 Buff 名稱");
+      return;
+    }
+    const secs = parseInt(durationSecs, 10);
+    if (!secs || secs <= 0) {
+      setError("秒數必須為正整數");
+      return;
+    }
+    setError(null);
+
+    if (editBuff) {
+      await invoke("update_buff", {
+        payload: {
+          id: editBuff.id,
+          name: trimmedName,
+          duration_secs: secs,
+          hotkey: hotkey || null,
+        },
+      });
+    } else {
+      await invoke("add_buff", {
+        payload: {
+          name: trimmedName,
+          duration_secs: secs,
+          hotkey: hotkey || null,
+        },
+      });
+    }
+    onSave();
+  };
+
+  return (
+    <div className="settings-page">
+      <div className="window-header" onMouseDown={startDrag}>
+        <div className="picker-title">
+          {editBuff ? "編輯 Buff" : "新增 Buff"}
+        </div>
+        <button
+          className="close-btn"
+          onClick={() => getCurrentWindow().close()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="settings-scroll">
+        <div className="buff-form">
+          <div className="buff-form-field">
+            <label className="buff-form-label">名稱 / Name</label>
+            <input
+              className="buff-form-input"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="例如：聖魂劍士"
+              autoFocus
+            />
+          </div>
+
+          <div className="buff-form-field">
+            <label className="buff-form-label">秒數 / Duration (sec)</label>
+            <input
+              className="buff-form-input"
+              type="number"
+              min="1"
+              value={durationSecs}
+              onChange={(e) => setDurationSecs(e.target.value)}
+              placeholder="例如：180"
+            />
+          </div>
+
+          <div className="buff-form-field">
+            <label className="buff-form-label">快捷鍵 / Hotkey</label>
+            <HotkeyCapture
+              currentHotkey={hotkey}
+              onCapture={(hk) => setHotkey(hk)}
+              onCancel={() => {}}
+            />
+            {hotkey && (
+              <button
+                className="hotkey-reset-btn"
+                onClick={() => setHotkey(null)}
+                title="清除快捷鍵"
+                style={{ marginLeft: 6 }}
+              >
+                ↺
+              </button>
+            )}
+          </div>
+
+          {error && <div className="buff-form-error">{error}</div>}
+        </div>
+      </div>
+
+      <div className="settings-footer buff-footer">
+        <button className="settings-btn buff-save-btn" onClick={handleSave}>
+          儲存 / Save
+        </button>
+        <button className="settings-btn back-btn" onClick={onCancel}>
+          取消 / Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- BuffHudApp: standalone window for buff timers ---
+function BuffHudApp() {
+  const [timers, setTimers] = useState<Timer[]>([]);
+  const prevCountRef = useRef(0);
+
+  useEffect(() => {
+    const unlisten = listen<TimerUpdate>("timer-update", (event) => {
+      setTimers(event.payload.timers);
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
+  const buffTimers = timers.filter((t) => t.timer_type === "buff");
+
+  // Show/hide and resize window based on active buff timers
+  useEffect(() => {
+    const win = getCurrentWindow();
+    if (buffTimers.length > 0) {
+      // 14px drag handle + 3px gap, then each icon 48px + 3px gap
+      const height = 14 + 3 + buffTimers.length * 51;
+      win.setSize(new LogicalSize(64, height));
+      win.show();
+    } else if (prevCountRef.current > 0) {
+      win.hide();
+    }
+    prevCountRef.current = buffTimers.length;
+  }, [buffTimers.length]);
+
+  if (buffTimers.length === 0) return null;
+
+  return (
+    <div className="buff-hud">
+      <div className="buff-bar-drag" onMouseDown={startDrag}>
+        <span className="buff-bar-grip">⋮</span>
+      </div>
+      {buffTimers.map((timer) => {
+        const secs = Math.ceil(Math.max(0, timer.remaining));
+        const progress =
+          timer.duration > 0 ? Math.max(0, timer.remaining) / timer.duration : 0;
+        const elapsedAngle = (1 - progress) * 360;
+
+        const stateClass =
+          timer.state === "Expired"
+            ? "buff-expired"
+            : timer.state === "Warning"
+              ? "buff-warning"
+              : "buff-active";
+
+        const abbr = timer.name.slice(0, 2);
+
+        return (
+          <div key={timer.id} className={`buff-icon ${stateClass}`}>
+            <span className="buff-emoji-text">{abbr}</span>
+            <span className="buff-secs">
+              {timer.state === "Expired" ? "!" : `${secs}`}
+            </span>
+            {timer.state !== "Expired" && (
+              <div
+                className="buff-sweep"
+                style={{
+                  background: `conic-gradient(rgba(0,0,0,0.6) ${elapsedAngle}deg, transparent ${elapsedAngle}deg)`,
+                }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // --- App ---
 function App() {
   const [timers, setTimers] = useState<Timer[]>([]);
@@ -582,7 +915,10 @@ function App() {
   const [bosses, setBosses] = useState<BossListItem[]>([]);
   const [showPicker, setShowPicker] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showBuffForm, setShowBuffForm] = useState(false);
+  const [editingBuff, setEditingBuff] = useState<BuffItem | null>(null);
   const [hotkeyOverrides, setHotkeyOverrides] = useState<Record<string, string>>({});
+  const [homeTab, setHomeTab] = useState<"boss" | "buff">("boss");
 
   // Load boss list on mount
   useEffect(() => {
@@ -621,6 +957,36 @@ function App() {
     };
   }, []);
 
+  // Disable global shortcuts while text inputs are focused to prevent hotkey eating
+  useEffect(() => {
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target.classList.contains("hotkey-capture")
+      ) {
+        invoke("disable_shortcuts");
+      }
+    };
+    const handleFocusOut = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target.classList.contains("hotkey-capture")
+      ) {
+        invoke("enable_shortcuts");
+      }
+    };
+    document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
+    return () => {
+      document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
+    };
+  }, []);
+
   const selectBoss = async (bossId: string) => {
     const resp = await invoke<SelectBossResponse>("select_boss", { bossId });
     setActiveBoss(bossId);
@@ -645,6 +1011,7 @@ function App() {
     setShowPicker(true);
     setShowSettings(false);
     setTimers([]);
+    setHomeTab("boss");
     resizeRightAnchored(SIZE_PICKER);
   }, []);
 
@@ -692,12 +1059,33 @@ function App() {
     );
   }
 
+  // Show buff form page
+  if (showBuffForm) {
+    return (
+      <BuffFormPage
+        editBuff={editingBuff}
+        onSave={() => {
+          setShowBuffForm(false);
+          setEditingBuff(null);
+          setHomeTab("buff");
+          resizeRightAnchored(SIZE_PICKER);
+        }}
+        onCancel={() => {
+          setShowBuffForm(false);
+          setEditingBuff(null);
+          setHomeTab("buff");
+          resizeRightAnchored(SIZE_PICKER);
+        }}
+      />
+    );
+  }
+
   // Show boss detail page when a boss is selected
   if (activeBoss && bossConfig) {
     return (
       <BossDetailPage
         config={bossConfig}
-        timers={timers}
+        timers={timers.filter((t) => t.timer_type !== "buff")}
         hiddenTimers={hiddenTimers}
         mutedTimers={mutedTimers}
         miniMode={miniMode}
@@ -711,7 +1099,7 @@ function App() {
     );
   }
 
-  // Show boss picker when no boss is selected
+  // Show homepage with Boss/Buff tabs when no boss is selected
   if (showPicker && !activeBoss) {
     return (
       <div className="boss-picker">
@@ -719,20 +1107,51 @@ function App() {
           <div className="picker-title">Artale Timer</div>
           <button className="close-btn" onClick={closeApp} onMouseDown={(e) => e.stopPropagation()}>✕</button>
         </div>
-        <div className="picker-subtitle">選擇 Boss / Select Boss</div>
-        <div className="boss-list">
-          {bosses.map((boss) => (
-            <button
-              key={boss.id}
-              className="boss-button"
-              onClick={() => selectBoss(boss.id)}
-            >
-              <span className="boss-name">{boss.name}</span>
-              <span className="boss-desc">{boss.description}</span>
-              <span className="boss-timers">{boss.timer_count} timers</span>
-            </button>
-          ))}
+        <div className="home-tabs">
+          <button
+            className={`home-tab ${homeTab === "boss" ? "home-tab-active" : ""}`}
+            onClick={() => setHomeTab("boss")}
+          >
+            Boss
+          </button>
+          <button
+            className={`home-tab ${homeTab === "buff" ? "home-tab-active" : ""}`}
+            onClick={() => setHomeTab("buff")}
+          >
+            Buff
+          </button>
         </div>
+        {homeTab === "boss" ? (
+          <>
+            <div className="picker-subtitle">選擇 Boss / Select Boss</div>
+            <div className="boss-list">
+              {bosses.map((boss) => (
+                <button
+                  key={boss.id}
+                  className="boss-button"
+                  onClick={() => selectBoss(boss.id)}
+                >
+                  <span className="boss-name">{boss.name}</span>
+                  <span className="boss-desc">{boss.description}</span>
+                  <span className="boss-timers">{boss.timer_count} timers</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <BuffTabContent
+            onAdd={() => {
+              setEditingBuff(null);
+              setShowBuffForm(true);
+              resizeRightAnchored(SIZE_BUFF_FORM);
+            }}
+            onEdit={(buff) => {
+              setEditingBuff(buff);
+              setShowBuffForm(true);
+              resizeRightAnchored(SIZE_BUFF_FORM);
+            }}
+          />
+        )}
         <button
           className="settings-link"
           onClick={() => {
@@ -749,4 +1168,14 @@ function App() {
   return null;
 }
 
-export default App;
+// --- Root: route to the correct component based on window label ---
+function Root() {
+  const [windowLabel] = useState(() => getCurrentWindow().label);
+
+  if (windowLabel === "buff-hud") {
+    return <BuffHudApp />;
+  }
+  return <App />;
+}
+
+export default Root;
