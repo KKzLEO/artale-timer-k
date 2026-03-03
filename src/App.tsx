@@ -125,7 +125,7 @@ function MechanicRow({
   const [showDesc, setShowDesc] = useState(false);
   const isActive = !!timer;
   const remaining = timer ? Math.max(0, timer.remaining) : def.duration_secs;
-  const secs = Math.ceil(remaining);
+  const displayTime = remaining < 1 && timer ? remaining.toFixed(1) : `${Math.ceil(remaining)}`;
   const progress = def.duration_secs > 0 ? remaining / def.duration_secs : 0;
 
   const stateClass = timer
@@ -182,7 +182,7 @@ function MechanicRow({
           />
         </div>
         <span className="mechanic-time">
-          {timer?.state === "Expired" ? "TIME!" : `${secs}s`}
+          {timer?.state === "Expired" ? "TIME!" : `${displayTime}s`}
         </span>
       </div>
     </div>
@@ -198,7 +198,7 @@ function MiniTile({
   timer: Timer | undefined;
 }) {
   const remaining = timer ? Math.max(0, timer.remaining) : def.duration_secs;
-  const secs = Math.ceil(remaining);
+  const displayTime = remaining < 1 && timer ? remaining.toFixed(1) : `${Math.ceil(remaining)}`;
   const progress = def.duration_secs > 0 ? remaining / def.duration_secs : 1;
   // Clockwise sweep: dark covers elapsed time, clear = remaining
   const elapsedAngle = (1 - progress) * 360;
@@ -215,7 +215,7 @@ function MiniTile({
     <div className={`buff-icon ${stateClass}`}>
       <span className="buff-emoji">{def.icon}</span>
       <span className="buff-secs">
-        {timer?.state === "Expired" ? "!" : `${secs}`}
+        {timer?.state === "Expired" ? "!" : displayTime}
       </span>
       {timer && timer.state !== "Expired" && (
         <div
@@ -869,7 +869,8 @@ function BuffHudApp() {
         <span className="buff-bar-grip">⋮</span>
       </div>
       {buffTimers.map((timer) => {
-        const secs = Math.ceil(Math.max(0, timer.remaining));
+        const rem = Math.max(0, timer.remaining);
+        const displayTime = rem < 1 ? rem.toFixed(1) : `${Math.ceil(rem)}`;
         const progress =
           timer.duration > 0 ? Math.max(0, timer.remaining) / timer.duration : 0;
         const elapsedAngle = (1 - progress) * 360;
@@ -887,7 +888,7 @@ function BuffHudApp() {
           <div key={timer.id} className={`buff-icon ${stateClass}`}>
             <span className="buff-emoji-text">{abbr}</span>
             <span className="buff-secs">
-              {timer.state === "Expired" ? "!" : `${secs}`}
+              {timer.state === "Expired" ? "!" : displayTime}
             </span>
             {timer.state !== "Expired" && (
               <div
