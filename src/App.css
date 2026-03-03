@@ -38,6 +38,23 @@ html, body, #root {
   background: rgba(255, 255, 255, 0.3);
 }
 
+/* ===== Resize Borders (decorationless transparent windows) ===== */
+
+.resize-edge {
+  position: absolute;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.resize-n  { top: 0; left: 6px; right: 6px; height: 6px; cursor: ns-resize; }
+.resize-s  { bottom: 0; left: 6px; right: 6px; height: 6px; cursor: ns-resize; }
+.resize-e  { right: 0; top: 6px; bottom: 6px; width: 6px; cursor: ew-resize; }
+.resize-w  { left: 0; top: 6px; bottom: 6px; width: 6px; cursor: ew-resize; }
+.resize-nw { top: 0; left: 0; width: 6px; height: 6px; cursor: nwse-resize; }
+.resize-ne { top: 0; right: 0; width: 6px; height: 6px; cursor: nesw-resize; }
+.resize-sw { bottom: 0; left: 0; width: 6px; height: 6px; cursor: nesw-resize; }
+.resize-se { bottom: 0; right: 0; width: 6px; height: 6px; cursor: nwse-resize; }
+
 /* ===== Animations ===== */
 
 @keyframes pulse {
@@ -58,6 +75,11 @@ html, body, #root {
   padding: 0 24px 24px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   pointer-events: auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
 }
 
 /* ===== Window Header (draggable title bar) ===== */
@@ -145,12 +167,16 @@ html, body, #root {
   margin-bottom: 16px;
   margin-top: 2px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  flex-shrink: 0;
 }
 
 .boss-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .boss-button {
@@ -205,6 +231,7 @@ html, body, #root {
   gap: 0;
   margin-bottom: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
 }
 
 .home-tab {
@@ -263,6 +290,7 @@ html, body, #root {
   margin-top: 12px;
   cursor: pointer;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  flex-shrink: 0;
 }
 
 .settings-link:hover {
@@ -278,6 +306,7 @@ html, body, #root {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  position: relative;
 }
 
 .hud-header {
@@ -355,7 +384,7 @@ html, body, #root {
 
 .mechanic-idle {
   border-left-color: rgba(255, 255, 255, 0.1);
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
 .mechanic-active {
@@ -561,6 +590,8 @@ html, body, #root {
   pointer-events: auto;
   width: 100%;
   height: 100%;
+  position: relative;
+  overflow: hidden;
 }
 
 .buff-bar-drag {
@@ -699,11 +730,12 @@ html, body, #root {
   background: rgba(20, 20, 30, var(--bg-opacity));
   border-radius: 12px;
   padding: 0 0 0 24px;
-  max-height: 100vh;
+  height: 100%;
   border: 1px solid rgba(255, 255, 255, 0.1);
   pointer-events: auto;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .settings-page > .window-header {
@@ -1066,6 +1098,7 @@ html, body, #root {
   width: 100%;
   height: 100%;
   padding: 2px;
+  position: relative;
 }
 
 .buff-emoji-text {

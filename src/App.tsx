@@ -16,6 +16,27 @@ function startDrag(e: React.MouseEvent) {
   getCurrentWindow().startDragging();
 }
 
+type ResizeDir = "North" | "South" | "East" | "West" | "NorthEast" | "NorthWest" | "SouthEast" | "SouthWest";
+
+function ResizeBorders() {
+  const handle = (dir: ResizeDir) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    getCurrentWindow().startResizeDragging(dir);
+  };
+  return (
+    <>
+      <div className="resize-edge resize-n" onMouseDown={handle("North")} />
+      <div className="resize-edge resize-s" onMouseDown={handle("South")} />
+      <div className="resize-edge resize-e" onMouseDown={handle("East")} />
+      <div className="resize-edge resize-w" onMouseDown={handle("West")} />
+      <div className="resize-edge resize-nw" onMouseDown={handle("NorthWest")} />
+      <div className="resize-edge resize-ne" onMouseDown={handle("NorthEast")} />
+      <div className="resize-edge resize-sw" onMouseDown={handle("SouthWest")} />
+      <div className="resize-edge resize-se" onMouseDown={handle("SouthEast")} />
+    </>
+  );
+}
+
 /** Resize window while keeping the right edge anchored. */
 async function resizeRightAnchored(newSize: LogicalSize) {
   const win = getCurrentWindow();
@@ -265,6 +286,26 @@ function BossDetailPage({
   onResetHidden: () => void;
   onToggleMini: () => void;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scale icons & text based on window size (normal mode only)
+  useEffect(() => {
+    if (miniMode) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0].contentRect.width;
+      const scale = Math.max(0.5, Math.min(3, width / 250));
+      const root = getComputedStyle(document.documentElement);
+      const userFont = parseFloat(root.getPropertyValue("--font-scale")) || 1;
+      const userIcon = parseFloat(root.getPropertyValue("--icon-scale")) || 1.25;
+      el.style.setProperty("--font-scale", String(userFont * scale));
+      el.style.setProperty("--icon-scale", String(userIcon * scale));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [miniMode]);
+
   const visibleDefs = config.timers.filter(
     (d) => !hiddenTimers.includes(d.id)
   );
@@ -304,7 +345,8 @@ function BossDetailPage({
 
   // --- Normal mode: transparent HUD overlay ---
   return (
-    <div className="hud-detail">
+    <div className="hud-detail" ref={containerRef}>
+      <ResizeBorders />
       <div className="hud-header" onMouseDown={startDrag}>
         <span className="hud-boss-name">{config.boss.name}</span>
         <div className="hud-actions">
@@ -528,6 +570,7 @@ function SettingsPage({
 
   return (
     <div className="settings-page">
+      <ResizeBorders />
       <div className="window-header" onMouseDown={startDrag}>
         <div className="picker-title">設定</div>
         <button className="close-btn" onClick={() => getCurrentWindow().close()} onMouseDown={(e) => e.stopPropagation()}>
@@ -866,6 +909,7 @@ function BuffFormPage({
 
   return (
     <div className="settings-page">
+      <ResizeBorders />
       <div className="window-header" onMouseDown={startDrag}>
         <div className="picker-title">
           {editBuff ? "編輯 Buff" : "新增 Buff"}
@@ -951,6 +995,7 @@ function BuffHudApp() {
       applyCssSettings(s);
       setIconScale(s.icon_scale);
     });
+    getCurrentWindow().setMinSize(new LogicalSize(48, 48));
   }, []);
 
   useEffect(() => {
@@ -982,6 +1027,7 @@ function BuffHudApp() {
 
   return (
     <div className="buff-hud">
+      <ResizeBorders />
       <div className="buff-bar-drag" onMouseDown={startDrag}>
         <span className="buff-bar-grip">⋮</span>
       </div>
@@ -1038,10 +1084,11 @@ function App() {
   const [hotkeyOverrides, setHotkeyOverrides] = useState<Record<string, string>>({});
   const [homeTab, setHomeTab] = useState<"boss" | "buff">("boss");
 
-  // Load boss list and display settings on mount
+  // Load boss list, display settings, and set minimum window size on mount
   useEffect(() => {
     invoke<BossListItem[]>("list_bosses").then(setBosses);
     invoke<AppSettings>("get_settings").then(applyCssSettings);
+    getCurrentWindow().setMinSize(new LogicalSize(200, 200));
   }, []);
 
   // Listen for timer updates
@@ -1222,6 +1269,7 @@ function App() {
   if (showPicker && !activeBoss) {
     return (
       <div className="boss-picker">
+        <ResizeBorders />
         <div className="window-header" onMouseDown={startDrag}>
           <div className="picker-title">Artale Timer</div>
           <button className="close-btn" onClick={closeApp} onMouseDown={(e) => e.stopPropagation()}>✕</button>
