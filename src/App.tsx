@@ -104,6 +104,7 @@ interface AppSettings {
   font_scale: number;
   icon_scale: number;
   bg_opacity: number;
+  pause_hotkey: string;
 }
 
 function applyCssSettings(s: AppSettings) {
@@ -268,6 +269,7 @@ function BossDetailPage({
   mutedTimers,
   miniMode,
   hotkeys,
+  shortcutsPaused,
   onBack,
   onHideTimer,
   onToggleMute,
@@ -280,6 +282,7 @@ function BossDetailPage({
   mutedTimers: string[];
   miniMode: boolean;
   hotkeys: Record<string, string>;
+  shortcutsPaused: boolean;
   onBack: () => void;
   onHideTimer: (timerId: string) => void;
   onToggleMute: (timerId: string) => void;
@@ -347,6 +350,7 @@ function BossDetailPage({
   return (
     <div className="hud-detail" ref={containerRef}>
       <ResizeBorders />
+      {shortcutsPaused && <div className="shortcuts-paused-banner">快捷鍵已暫停</div>}
       <div className="hud-header" onMouseDown={startDrag}>
         <span className="hud-boss-name">{config.boss.name}</span>
         <div className="hud-actions">
@@ -521,7 +525,7 @@ function SettingsPage({
     }
   };
 
-  const updateGlobalHotkey = (field: "back_hotkey" | "stop_all_hotkey", value: string) => {
+  const updateGlobalHotkey = (field: "back_hotkey" | "stop_all_hotkey" | "pause_hotkey", value: string) => {
     if (!settings) return;
     persistSettings({ ...settings, [field]: value });
   };
@@ -706,6 +710,25 @@ function SettingsPage({
               )}
             </div>
           </div>
+          <div className="hotkey-row">
+            <span className="hotkey-label">暫停快捷鍵</span>
+            <div className="hotkey-right">
+              <HotkeyCapture
+                currentHotkey={settings.pause_hotkey}
+                onCapture={(hk) => updateGlobalHotkey("pause_hotkey", hk)}
+                onCancel={() => {}}
+              />
+              {settings.pause_hotkey !== "Ctrl+Backquote" && (
+                <button
+                  className="hotkey-reset-btn"
+                  onClick={() => updateGlobalHotkey("pause_hotkey", "Ctrl+Backquote")}
+                  title="重置 / Reset"
+                >
+                  ↺
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {bosses.map((boss) => (
@@ -747,10 +770,8 @@ function SettingsPage({
 
 // --- BuffTabContent: inline buff list for homepage tab ---
 function BuffTabContent({
-  onAdd,
   onEdit,
 }: {
-  onAdd: () => void;
   onEdit: (buff: BuffItem) => void;
 }) {
   const [buffs, setBuffs] = useState<BuffItem[]>([]);
@@ -847,11 +868,6 @@ function BuffTabContent({
           ))}
         </div>
       )}
-      <div className="buff-tab-actions">
-        <button className="settings-btn buff-add-btn" onClick={onAdd}>
-          + 新增 Buff
-        </button>
-      </div>
     </div>
   );
 }
@@ -1083,6 +1099,15 @@ function App() {
   const [editingBuff, setEditingBuff] = useState<BuffItem | null>(null);
   const [hotkeyOverrides, setHotkeyOverrides] = useState<Record<string, string>>({});
   const [homeTab, setHomeTab] = useState<"boss" | "buff">("boss");
+  const [shortcutsPaused, setShortcutsPaused] = useState(false);
+
+  // Listen for shortcuts-paused toggle from Rust
+  useEffect(() => {
+    const unlisten = listen<boolean>("shortcuts-paused", (event) => {
+      setShortcutsPaused(event.payload);
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
 
   // Load boss list, display settings, and set minimum window size on mount
   useEffect(() => {
@@ -1256,6 +1281,7 @@ function App() {
         mutedTimers={mutedTimers}
         miniMode={miniMode}
         hotkeys={hotkeyOverrides}
+        shortcutsPaused={shortcutsPaused}
         onBack={goBackToMain}
         onHideTimer={handleHideTimer}
         onToggleMute={handleToggleMute}
@@ -1274,6 +1300,7 @@ function App() {
           <div className="picker-title">Artale Timer</div>
           <button className="close-btn" onClick={closeApp} onMouseDown={(e) => e.stopPropagation()}>✕</button>
         </div>
+        {shortcutsPaused && <div className="shortcuts-paused-banner">快捷鍵已暫停 (Ctrl+`)</div>}
         <div className="home-tabs">
           <button
             className={`home-tab ${homeTab === "boss" ? "home-tab-active" : ""}`}
@@ -1307,17 +1334,25 @@ function App() {
           </>
         ) : (
           <BuffTabContent
-            onAdd={() => {
-              setEditingBuff(null);
-              setShowBuffForm(true);
-              resizeRightAnchored(SIZE_BUFF_FORM);
-            }}
             onEdit={(buff) => {
               setEditingBuff(buff);
               setShowBuffForm(true);
               resizeRightAnchored(SIZE_BUFF_FORM);
             }}
           />
+        )}
+        {homeTab === "buff" && (
+          <button
+            className="settings-btn buff-add-btn"
+            style={{ flexShrink: 0 }}
+            onClick={() => {
+              setEditingBuff(null);
+              setShowBuffForm(true);
+              resizeRightAnchored(SIZE_BUFF_FORM);
+            }}
+          >
+            + 新增 Buff
+          </button>
         )}
         <button
           className="settings-link"

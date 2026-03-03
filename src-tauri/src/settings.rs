@@ -35,6 +35,9 @@ pub struct AppSettings {
 
     #[serde(default = "default_bg_opacity")]
     pub bg_opacity: f64,
+
+    #[serde(default = "default_pause_hotkey")]
+    pub pause_hotkey: String,
 }
 
 fn default_back_hotkey() -> String {
@@ -57,6 +60,10 @@ fn default_bg_opacity() -> f64 {
     1.0
 }
 
+fn default_pause_hotkey() -> String {
+    "Ctrl+Backquote".to_string()
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -69,6 +76,7 @@ impl Default for AppSettings {
             font_scale: default_font_scale(),
             icon_scale: default_icon_scale(),
             bg_opacity: default_bg_opacity(),
+            pause_hotkey: default_pause_hotkey(),
         }
     }
 }

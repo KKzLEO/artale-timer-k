@@ -306,7 +306,8 @@ pub fn start_tick_loop(
                 }
                 if let Some(chain_to) = event.chain_to {
                     let _ = engine.start_timer(&chain_to).await;
-                } else if event.repeat {
+                }
+                if event.repeat {
                     let _ = engine.start_timer(&event.def_id).await;
                 }
             }

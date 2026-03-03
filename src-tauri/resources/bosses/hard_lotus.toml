@@ -20,7 +20,7 @@ id = "dark_water_countdown"
 name = "黑水倒數(69%)"
 description = "69%的時候施放，每70秒放一次黑水"
 icon = "💧"
-duration_secs = 70.0
+duration_secs = 84.0
 hotkey = "F8"
 color = "#6C5CE7"
 warning_secs = 5.0
@@ -28,10 +28,10 @@ repeat = true
 
 [[timers]]
 id = "dark_orb_end"
-name = "黑球結束(反盾開始)"
+name = "黑球爆炸"
 description = "拉圖斯放反盾時施放，估算黑球爆掉的時間"
-icon = "⚫"
-duration_secs = 14.0
+icon = "💥"
+duration_secs = 16.0
 hotkey = "F9"
 color = "#2D3436"
 warning_secs = 3.0
@@ -42,18 +42,18 @@ id = "minion_summon"
 name = "小怪召喚(84%)"
 description = "84%的時候施放，每50秒生成一波小怪，小怪持續40秒"
 icon = "👾"
-duration_secs = 50.0
+duration_secs = 45.0
 hotkey = "F10"
 color = "#00B894"
 warning_secs = 5.0
-repeat = true
+repeat = false
 
 [[timers]]
 id = "reflect_shield"
 name = "反盾(84%)"
-description = "84%的時候施放，每120秒會反盾一次"
+description = "84%的時候施放，反盾間隔約90~120秒不固定"
 icon = "🛡"
-duration_secs = 120.0
+duration_secs = 90.0
 hotkey = "F11"
 color = "#FDCB6E"
 warning_secs = 5.0

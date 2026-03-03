@@ -55,6 +55,20 @@ html, body, #root {
 .resize-sw { bottom: 0; left: 0; width: 6px; height: 6px; cursor: nesw-resize; }
 .resize-se { bottom: 0; right: 0; width: 6px; height: 6px; cursor: nwse-resize; }
 
+/* ===== Shortcuts Paused Banner ===== */
+
+.shortcuts-paused-banner {
+  background: rgba(255, 107, 107, 0.2);
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  border-radius: 4px;
+  color: #FF6B6B;
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  text-align: center;
+  padding: 3px 8px;
+  flex-shrink: 0;
+}
+
 /* ===== Animations ===== */
 
 @keyframes pulse {

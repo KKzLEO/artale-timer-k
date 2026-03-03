@@ -28,6 +28,7 @@ pub struct AppState {
     pub buffs: Arc<Mutex<BuffConfig>>,
     pub buffs_path: PathBuf,
     pub key_listener: key_listener::KeyListener,
+    pub shortcuts_paused: Arc<Mutex<bool>>,
 }
 
 fn get_bosses_dir(app: &AppHandle) -> PathBuf {
@@ -760,13 +761,23 @@ async fn request_accessibility_permission() -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn disable_shortcuts(app: AppHandle) -> Result<(), String> {
-    shortcuts::unregister_all(&app);
+async fn disable_shortcuts(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    let settings = state.settings.lock().await;
+    let pause_hotkey = settings.pause_hotkey.clone();
+    drop(settings);
+    // Keep only the pause-toggle shortcut alive
+    shortcuts::register_pause_toggle_only(&app, &pause_hotkey);
     Ok(())
 }
 
 #[tauri::command]
 async fn enable_shortcuts(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    // Don't re-enable if shortcuts are globally paused
+    let paused = *state.shortcuts_paused.lock().await;
+    if paused {
+        return Ok(());
+    }
+
     let settings = state.settings.lock().await.clone();
     let active_boss = state.active_boss.lock().await.clone();
     let buffs = state.buffs.lock().await.clone();
@@ -800,6 +811,9 @@ async fn enable_shortcuts(app: AppHandle, state: State<'_, AppState>) -> Result<
     } else {
         shortcuts::register_all_shortcuts(&app, None, None, &settings, &buffs.buffs);
     }
+
+    // Always keep pause toggle registered
+    shortcuts::register_pause_toggle(&app, &settings.pause_hotkey);
 
     Ok(())
 }
@@ -874,6 +888,7 @@ pub fn run() {
                 buffs: Arc::new(Mutex::new(buff_cfg.clone())),
                 buffs_path: buffs_path.clone(),
                 key_listener: key_listener::KeyListener::new(),
+                shortcuts_paused: Arc::new(Mutex::new(false)),
             });
 
             // Register buff shortcuts at startup
@@ -881,6 +896,9 @@ pub fn run() {
                 &handle,
                 &buff_cfg.buffs,
             );
+
+            // Register pause-toggle shortcut
+            shortcuts::register_pause_toggle(&handle, &app_settings.pause_hotkey);
 
             // Setup system tray (after AppState is managed)
             tray::setup_tray(&handle, &boss_list)?;

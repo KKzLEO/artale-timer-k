@@ -320,3 +320,51 @@ pub fn register_shortcuts_without_buffs(
 pub fn unregister_all(app: &AppHandle) {
     let _ = app.global_shortcut().unregister_all();
 }
+
+/// Register only the pause-toggle shortcut. All other shortcuts are unregistered.
+pub fn register_pause_toggle_only(app: &AppHandle, pause_hotkey: &str) {
+    let _ = app.global_shortcut().unregister_all();
+    register_pause_toggle(app, pause_hotkey);
+}
+
+/// Register the pause-toggle shortcut (always stays registered).
+pub fn register_pause_toggle(app: &AppHandle, hotkey: &str) {
+    let app_clone = app.clone();
+    let _ = app.global_shortcut().on_shortcut(hotkey, move |_app, _shortcut, event| {
+        if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+            let app = app_clone.clone();
+            tauri::async_runtime::spawn(async move {
+                let state = app.state::<AppState>();
+                let mut paused = state.shortcuts_paused.lock().await;
+                let new_paused = !*paused;
+                *paused = new_paused;
+                let settings = state.settings.lock().await.clone();
+                let pause_hotkey = settings.pause_hotkey.clone();
+                drop(paused);
+
+                if new_paused {
+                    // Unregister everything, re-register only the toggle
+                    register_pause_toggle_only(&app, &pause_hotkey);
+                } else {
+                    // Re-register all shortcuts (including toggle)
+                    let active_boss = state.active_boss.lock().await.clone();
+                    let buff_cfg = state.buffs.lock().await.clone();
+
+                    if let Some(boss_id) = active_boss.as_ref() {
+                        let bosses = state.bosses.lock().await;
+                        let config = bosses.iter().find(|(id, _)| id == boss_id).map(|(_, c)| c.clone());
+                        drop(bosses);
+                        if let Some(config) = config {
+                            register_all_shortcuts(&app, Some(boss_id.as_str()), Some(&config), &settings, &buff_cfg.buffs);
+                        }
+                    } else {
+                        register_all_shortcuts(&app, None, None, &settings, &buff_cfg.buffs);
+                    }
+                    register_pause_toggle(&app, &pause_hotkey);
+                }
+
+                let _ = app.emit("shortcuts-paused", new_paused);
+            });
+        }
+    });
+}
