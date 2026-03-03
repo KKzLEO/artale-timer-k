@@ -1,3 +1,9 @@
+:root {
+  --font-scale: 1;
+  --icon-scale: 1.25;
+  --bg-opacity: 1;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -11,6 +17,25 @@ html, body, #root {
   overflow: hidden;
   width: 100%;
   height: 100%;
+}
+
+/* ===== Custom Scrollbar ===== */
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* ===== Animations ===== */
@@ -28,7 +53,7 @@ html, body, #root {
 /* ===== Boss Picker ===== */
 
 .boss-picker {
-  background: rgba(20, 20, 30, 0.95);
+  background: rgba(20, 20, 30, var(--bg-opacity));
   border-radius: 12px;
   padding: 0 24px 24px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -107,7 +132,7 @@ html, body, #root {
 
 .picker-title {
   color: #fff;
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale));
   font-weight: 700;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   flex: 1;
@@ -115,7 +140,7 @@ html, body, #root {
 
 .picker-subtitle {
   color: rgba(255, 255, 255, 0.5);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   text-align: center;
   margin-bottom: 16px;
   margin-top: 2px;
@@ -148,26 +173,26 @@ html, body, #root {
 
 .boss-name {
   color: #fff;
-  font-size: 15px;
+  font-size: calc(15px * var(--font-scale));
   font-weight: 600;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .boss-desc {
   color: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .boss-timers {
   color: rgba(78, 205, 196, 0.8);
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .picker-hint {
   color: rgba(255, 255, 255, 0.35);
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
   text-align: center;
   margin-top: 14px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -189,7 +214,7 @@ html, body, #root {
   border: none;
   border-bottom: 2px solid transparent;
   color: rgba(255, 255, 255, 0.4);
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   font-weight: 600;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   cursor: pointer;
@@ -233,7 +258,7 @@ html, body, #root {
   background: none;
   border: none;
   color: rgba(78, 205, 196, 0.7);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   text-align: center;
   margin-top: 12px;
   cursor: pointer;
@@ -269,7 +294,7 @@ html, body, #root {
 
 .hud-boss-name {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
   font-weight: 600;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
@@ -286,8 +311,8 @@ html, body, #root {
   border: none;
   color: rgba(255, 255, 255, 0.4);
   font-size: 12px;
-  width: 22px;
-  height: 22px;
+  width: calc(22px * var(--icon-scale));
+  height: calc(22px * var(--icon-scale));
   border-radius: 4px;
   cursor: pointer;
   display: flex;
@@ -321,7 +346,7 @@ html, body, #root {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, var(--bg-opacity));
   border-radius: 4px;
   padding: 5px 8px;
   border-left: 2px solid rgba(255, 255, 255, 0.08);
@@ -335,32 +360,32 @@ html, body, #root {
 
 .mechanic-active {
   border-left-color: #4ECDC4;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, calc(var(--bg-opacity) - 0.1));
   opacity: 1;
 }
 
 .mechanic-warning {
   border-left-color: #FFE66D;
   animation: pulse 0.5s ease-in-out infinite alternate;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, calc(var(--bg-opacity) - 0.1));
 }
 
 .mechanic-expired {
   border-left-color: #FF6B6B;
   animation: flash 0.3s ease-in-out infinite alternate;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, calc(var(--bg-opacity) - 0.1));
 }
 
 /* -- Skill Icon Frame (MapleStory buff style: light bg, thin gray border) -- */
 .mechanic-icon {
   flex-shrink: 0;
-  width: 42px;
-  height: 42px;
+  width: calc(42px * var(--icon-scale));
+  height: calc(42px * var(--icon-scale));
   border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale));
   background: linear-gradient(180deg, #f2efe9 0%, #e4e0d8 100%);
   border: 1.5px solid #bbb8b0;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -396,7 +421,7 @@ html, body, #root {
 
 .mechanic-name {
   color: rgba(255, 255, 255, 0.85);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 500;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
@@ -422,8 +447,8 @@ html, body, #root {
 }
 
 .mechanic-desc {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: calc(10px * var(--font-scale));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   line-height: 1.3;
@@ -505,7 +530,7 @@ html, body, #root {
 
 .mechanic-time {
   color: rgba(255, 255, 255, 0.5);
-  font-size: 10px;
+  font-size: calc(10px * var(--font-scale));
   font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
@@ -586,8 +611,8 @@ html, body, #root {
 /* -- Buff Icon (32x32, MapleStory buff-bar style) -- */
 
 .buff-icon {
-  width: 48px;
-  height: 48px;
+  width: calc(48px * var(--icon-scale));
+  height: calc(48px * var(--icon-scale));
   border-radius: 5px;
   position: relative;
   background: linear-gradient(180deg, #f2efe9 0%, #e4e0d8 100%);
@@ -601,7 +626,7 @@ html, body, #root {
 }
 
 .buff-emoji {
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale));
   line-height: 1;
   position: relative;
   z-index: 1;
@@ -609,7 +634,7 @@ html, body, #root {
 
 .buff-secs {
   color: #333;
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
   font-weight: 700;
   font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
   line-height: 1;
@@ -664,16 +689,16 @@ html, body, #root {
 
 .buff-expired .buff-secs {
   color: #cc3333;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   text-shadow: 0 0 3px rgba(255, 255, 255, 0.9);
 }
 
 /* ===== Settings Page ===== */
 
 .settings-page {
-  background: rgba(20, 20, 30, 0.95);
+  background: rgba(20, 20, 30, var(--bg-opacity));
   border-radius: 12px;
-  padding: 0 24px 0;
+  padding: 0 0 0 24px;
   max-height: 100vh;
   border: 1px solid rgba(255, 255, 255, 0.1);
   pointer-events: auto;
@@ -681,15 +706,21 @@ html, body, #root {
   flex-direction: column;
 }
 
+.settings-page > .window-header {
+  margin: 0 0 0 -24px;
+  padding-right: 14px;
+}
+
 .settings-scroll {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
   padding-bottom: 8px;
+  padding-right: 19px;
 }
 
 .settings-footer {
-  padding: 12px 0;
+  padding: 12px 24px 12px 0;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -699,7 +730,7 @@ html, body, #root {
 
 .settings-section-title {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -718,7 +749,7 @@ html, body, #root {
 
 .hotkey-label {
   color: rgba(255, 255, 255, 0.8);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -754,7 +785,7 @@ html, body, #root {
   border-radius: 4px;
   padding: 3px 10px;
   color: #4ECDC4;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
   cursor: pointer;
   transition: background 0.15s ease;
@@ -771,7 +802,7 @@ html, body, #root {
   border-radius: 4px;
   padding: 3px 10px;
   color: #FFE66D;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   outline: none;
   animation: pulse 0.8s ease-in-out infinite alternate;
@@ -783,7 +814,7 @@ html, body, #root {
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   cursor: pointer;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   transition: background 0.15s ease;
 }
@@ -801,7 +832,7 @@ html, body, #root {
 
 .buff-empty-state {
   color: rgba(255, 255, 255, 0.4);
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   text-align: center;
   padding: 40px 20px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -845,14 +876,14 @@ html, body, #root {
 
 .buff-card-name {
   color: #fff;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   font-weight: 600;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .buff-card-detail {
   color: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
   display: flex;
   align-items: center;
@@ -864,7 +895,7 @@ html, body, #root {
   border-radius: 3px;
   padding: 0 5px;
   color: rgba(78, 205, 196, 0.8);
-  font-size: 11px;
+  font-size: calc(11px * var(--font-scale));
 }
 
 .buff-card-actions {
@@ -992,7 +1023,7 @@ html, body, #root {
 
 .buff-form-label {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 500;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -1003,7 +1034,7 @@ html, body, #root {
   border-radius: 6px;
   padding: 8px 12px;
   color: #fff;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   outline: none;
   transition: border-color 0.15s ease;
@@ -1019,7 +1050,7 @@ html, body, #root {
 
 .buff-form-error {
   color: #FF6B6B;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   padding: 4px 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -1038,11 +1069,96 @@ html, body, #root {
 }
 
 .buff-emoji-text {
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   font-weight: 700;
   line-height: 1;
   position: relative;
   z-index: 1;
   color: #333;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ===== Display Settings Sliders ===== */
+
+.slider-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.slider-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: calc(13px * var(--font-scale));
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.slider-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.slider-value {
+  color: #4ECDC4;
+  font-size: calc(12px * var(--font-scale));
+  font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+  min-width: 36px;
+  text-align: right;
+}
+
+.slider-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  outline: none;
+  cursor: pointer;
+}
+
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4ECDC4;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.slider-input::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4ECDC4;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.display-reset-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  transition: all 0.15s ease;
+  margin-top: 4px;
+  align-self: flex-end;
+}
+
+.display-reset-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.25);
 }

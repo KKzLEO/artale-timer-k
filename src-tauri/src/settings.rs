@@ -26,6 +26,15 @@ pub struct AppSettings {
     /// Global mini mode toggle
     #[serde(default)]
     pub mini_mode: bool,
+
+    #[serde(default = "default_font_scale")]
+    pub font_scale: f64,
+
+    #[serde(default = "default_icon_scale")]
+    pub icon_scale: f64,
+
+    #[serde(default = "default_bg_opacity")]
+    pub bg_opacity: f64,
 }
 
 fn default_back_hotkey() -> String {
@@ -34,6 +43,18 @@ fn default_back_hotkey() -> String {
 
 fn default_stop_all_hotkey() -> String {
     "Ctrl+0".to_string()
+}
+
+fn default_font_scale() -> f64 {
+    1.0
+}
+
+fn default_icon_scale() -> f64 {
+    1.25
+}
+
+fn default_bg_opacity() -> f64 {
+    1.0
 }
 
 impl Default for AppSettings {
@@ -45,6 +66,9 @@ impl Default for AppSettings {
             hidden_timers: HashMap::new(),
             muted_timers: HashMap::new(),
             mini_mode: false,
+            font_scale: default_font_scale(),
+            icon_scale: default_icon_scale(),
+            bg_opacity: default_bg_opacity(),
         }
     }
 }

@@ -8,7 +8,7 @@ import "./App.css";
 const SIZE_PICKER = new LogicalSize(320, 440);
 const SIZE_DETAIL = new LogicalSize(250, 500);
 const SIZE_DETAIL_MINI = new LogicalSize(64, 350);
-const SIZE_SETTINGS = new LogicalSize(340, 500);
+const SIZE_SETTINGS = new LogicalSize(340, 680);
 const SIZE_BUFF_FORM = new LogicalSize(340, 360);
 
 function startDrag(e: React.MouseEvent) {
@@ -80,6 +80,16 @@ interface AppSettings {
   hotkeys: Record<string, Record<string, string>>;
   hidden_timers: Record<string, string[]>;
   mini_mode: boolean;
+  font_scale: number;
+  icon_scale: number;
+  bg_opacity: number;
+}
+
+function applyCssSettings(s: AppSettings) {
+  const root = document.documentElement;
+  root.style.setProperty("--font-scale", String(s.font_scale));
+  root.style.setProperty("--icon-scale", String(s.icon_scale));
+  root.style.setProperty("--bg-opacity", String(s.bg_opacity));
 }
 
 interface BossHotkeyInfo {
@@ -434,9 +444,14 @@ function SettingsPage({
   onBack: () => void;
 }) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const settingsRef = useRef<AppSettings | null>(null);
   const [bossHotkeys, setBossHotkeys] = useState<Record<string, BossHotkeyInfo[]>>({});
   useEffect(() => {
-    invoke<AppSettings>("get_settings").then(setSettings);
+    invoke<AppSettings>("get_settings").then((s) => {
+      setSettings(s);
+      settingsRef.current = s;
+      applyCssSettings(s);
+    });
     Promise.all(
       bosses.map((b) =>
         invoke<BossHotkeyInfo[]>("get_boss_hotkeys", { bossId: b.id }).then(
@@ -454,7 +469,14 @@ function SettingsPage({
 
   const persistSettings = async (newSettings: AppSettings) => {
     setSettings(newSettings);
+    settingsRef.current = newSettings;
     await invoke("save_settings", { payload: { settings: newSettings } });
+  };
+
+  const persistLatest = () => {
+    if (settingsRef.current) {
+      invoke("save_settings", { payload: { settings: settingsRef.current } });
+    }
   };
 
   const updateGlobalHotkey = (field: "back_hotkey" | "stop_all_hotkey", value: string) => {
@@ -507,14 +529,99 @@ function SettingsPage({
   return (
     <div className="settings-page">
       <div className="window-header" onMouseDown={startDrag}>
-        <div className="picker-title">快捷鍵設定</div>
+        <div className="picker-title">設定</div>
         <button className="close-btn" onClick={() => getCurrentWindow().close()} onMouseDown={(e) => e.stopPropagation()}>
           ✕
         </button>
       </div>
 
       <div className="settings-scroll">
-        <div className="picker-subtitle">Hotkey Settings</div>
+        <div className="picker-subtitle">Settings</div>
+
+        <div className="settings-section">
+          <div className="settings-section-title">顯示 / Display</div>
+          <div className="slider-row">
+            <span className="slider-label">字體大小 / Font Size</span>
+            <div className="slider-right">
+              <span className="slider-value">{Math.round(settings.font_scale * 100)}%</span>
+              <input
+                className="slider-input"
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.05"
+                value={settings.font_scale}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  const next = { ...settings, font_scale: v };
+                  setSettings(next);
+                  settingsRef.current = next;
+                  applyCssSettings(next);
+                }}
+                onMouseUp={persistLatest}
+                onTouchEnd={persistLatest}
+              />
+            </div>
+          </div>
+          <div className="slider-row">
+            <span className="slider-label">圖示大小 / Icon Size</span>
+            <div className="slider-right">
+              <span className="slider-value">{Math.round(settings.icon_scale * 100)}%</span>
+              <input
+                className="slider-input"
+                type="range"
+                min="0.5"
+                max="2"
+                step="0.05"
+                value={settings.icon_scale}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  const next = { ...settings, icon_scale: v };
+                  setSettings(next);
+                  settingsRef.current = next;
+                  applyCssSettings(next);
+                }}
+                onMouseUp={persistLatest}
+                onTouchEnd={persistLatest}
+              />
+            </div>
+          </div>
+          <div className="slider-row">
+            <span className="slider-label">背景透明度 / BG Opacity</span>
+            <div className="slider-right">
+              <span className="slider-value">{Math.round(settings.bg_opacity * 100)}%</span>
+              <input
+                className="slider-input"
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={settings.bg_opacity}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  const next = { ...settings, bg_opacity: v };
+                  setSettings(next);
+                  settingsRef.current = next;
+                  applyCssSettings(next);
+                }}
+                onMouseUp={persistLatest}
+                onTouchEnd={persistLatest}
+              />
+            </div>
+          </div>
+          {(settings.font_scale !== 1 || settings.icon_scale !== 1.25 || settings.bg_opacity !== 1) && (
+            <button
+              className="display-reset-btn"
+              onClick={() => {
+                const next = { ...settings, font_scale: 1, icon_scale: 1.25, bg_opacity: 1 };
+                persistSettings(next);
+                applyCssSettings(next);
+              }}
+            >
+              重置預設 / Reset
+            </button>
+          )}
+        </div>
 
         <div className="settings-section">
           <div className="settings-section-title">全局 / Global</div>
@@ -836,7 +943,15 @@ function BuffFormPage({
 // --- BuffHudApp: standalone window for buff timers ---
 function BuffHudApp() {
   const [timers, setTimers] = useState<Timer[]>([]);
+  const [iconScale, setIconScale] = useState(1);
   const prevCountRef = useRef(0);
+
+  useEffect(() => {
+    invoke<AppSettings>("get_settings").then((s) => {
+      applyCssSettings(s);
+      setIconScale(s.icon_scale);
+    });
+  }, []);
 
   useEffect(() => {
     const unlisten = listen<TimerUpdate>("timer-update", (event) => {
@@ -851,15 +966,17 @@ function BuffHudApp() {
   useEffect(() => {
     const win = getCurrentWindow();
     if (buffTimers.length > 0) {
-      // 14px drag handle + 3px gap, then each icon 48px + 3px gap
-      const height = 14 + 3 + buffTimers.length * 51;
-      win.setSize(new LogicalSize(64, height));
+      const iconPx = Math.round(48 * iconScale);
+      const width = Math.round(64 * iconScale);
+      // 14px drag handle + 3px gap, then each icon scaled + 3px gap
+      const height = 14 + 3 + buffTimers.length * (iconPx + 3);
+      win.setSize(new LogicalSize(width, height));
       win.show();
     } else if (prevCountRef.current > 0) {
       win.hide();
     }
     prevCountRef.current = buffTimers.length;
-  }, [buffTimers.length]);
+  }, [buffTimers.length, iconScale]);
 
   if (buffTimers.length === 0) return null;
 
@@ -921,9 +1038,10 @@ function App() {
   const [hotkeyOverrides, setHotkeyOverrides] = useState<Record<string, string>>({});
   const [homeTab, setHomeTab] = useState<"boss" | "buff">("boss");
 
-  // Load boss list on mount
+  // Load boss list and display settings on mount
   useEffect(() => {
     invoke<BossListItem[]>("list_bosses").then(setBosses);
+    invoke<AppSettings>("get_settings").then(applyCssSettings);
   }, []);
 
   // Listen for timer updates
@@ -1160,7 +1278,7 @@ function App() {
             resizeRightAnchored(SIZE_SETTINGS);
           }}
         >
-          快捷鍵設定 / Hotkey Settings
+          設定 / Settings
         </button>
       </div>
     );
