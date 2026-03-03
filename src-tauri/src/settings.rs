@@ -23,6 +23,10 @@ pub struct AppSettings {
     #[serde(default)]
     pub muted_timers: HashMap<String, Vec<String>>,
 
+    /// Per-boss timer display order: boss_id -> ordered list of timer IDs
+    #[serde(default)]
+    pub timer_orders: HashMap<String, Vec<String>>,
+
     /// Global mini mode toggle
     #[serde(default)]
     pub mini_mode: bool,
@@ -72,6 +76,7 @@ impl Default for AppSettings {
             hotkeys: HashMap::new(),
             hidden_timers: HashMap::new(),
             muted_timers: HashMap::new(),
+            timer_orders: HashMap::new(),
             mini_mode: false,
             font_scale: default_font_scale(),
             icon_scale: default_icon_scale(),

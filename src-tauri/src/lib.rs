@@ -133,6 +133,7 @@ struct SelectBossResponse {
     hidden_timers: Vec<String>,
     muted_timers: Vec<String>,
     mini_mode: bool,
+    timer_order: Vec<String>,
 }
 
 #[tauri::command]
@@ -165,6 +166,11 @@ async fn select_boss(
         .cloned()
         .unwrap_or_default();
     let mini_mode = settings.mini_mode;
+    let timer_order = settings
+        .timer_orders
+        .get(&boss_id)
+        .cloned()
+        .unwrap_or_default();
 
     // Load only non-hidden timer defs
     let visible_timers: Vec<_> = config
@@ -198,6 +204,7 @@ async fn select_boss(
         hidden_timers: hidden,
         muted_timers: muted,
         mini_mode,
+        timer_order,
     })
 }
 
@@ -271,6 +278,18 @@ async fn reset_hidden_timers(
         }
     }
 
+    Ok(())
+}
+
+#[tauri::command]
+async fn save_timer_order(
+    boss_id: String,
+    order: Vec<String>,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut settings = state.settings.lock().await;
+    settings.timer_orders.insert(boss_id, order);
+    settings::save_settings(&state.settings_path, &settings)?;
     Ok(())
 }
 
@@ -930,6 +949,7 @@ pub fn run() {
             hide_timer,
             reset_hidden_timers,
             set_mini_mode,
+            save_timer_order,
             toggle_mute_timer,
             list_buffs,
             add_buff,

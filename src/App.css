@@ -578,6 +578,21 @@ html, body, #root {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
+/* -- Drag reorder feedback -- */
+.mechanic-row-dragging .mechanic-row {
+  transform: scale(1.05);
+  box-shadow: 0 0 0 1.5px rgba(78, 205, 196, 0.7), 0 6px 20px rgba(0, 0, 0, 0.6);
+  border-left-color: #4ECDC4;
+  border-left-width: 3px;
+  background: rgba(78, 205, 196, 0.12);
+  z-index: 10;
+  position: relative;
+}
+
+.mechanic-row-dimmed .mechanic-row {
+  opacity: 0.4;
+}
+
 .mechanic-active .mechanic-time {
   color: #fff;
   font-weight: 600;

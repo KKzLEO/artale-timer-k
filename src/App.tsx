@@ -100,6 +100,7 @@ interface AppSettings {
   stop_all_hotkey: string;
   hotkeys: Record<string, Record<string, string>>;
   hidden_timers: Record<string, string[]>;
+  timer_orders: Record<string, string[]>;
   mini_mode: boolean;
   font_scale: number;
   icon_scale: number;
@@ -126,6 +127,7 @@ interface SelectBossResponse {
   hidden_timers: string[];
   muted_timers: string[];
   mini_mode: boolean;
+  timer_order: string[];
 }
 
 interface BuffItem {
@@ -270,11 +272,14 @@ function BossDetailPage({
   miniMode,
   hotkeys,
   shortcutsPaused,
+  bossId,
+  timerOrder,
   onBack,
   onHideTimer,
   onToggleMute,
   onResetHidden,
   onToggleMini,
+  onReorder,
 }: {
   config: BossConfig;
   timers: Timer[];
@@ -283,11 +288,14 @@ function BossDetailPage({
   miniMode: boolean;
   hotkeys: Record<string, string>;
   shortcutsPaused: boolean;
+  bossId: string;
+  timerOrder: string[];
   onBack: () => void;
   onHideTimer: (timerId: string) => void;
   onToggleMute: (timerId: string) => void;
   onResetHidden: () => void;
   onToggleMini: () => void;
+  onReorder: (order: string[]) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -309,9 +317,107 @@ function BossDetailPage({
     return () => observer.disconnect();
   }, [miniMode]);
 
-  const visibleDefs = config.timers.filter(
-    (d) => !hiddenTimers.includes(d.id)
-  );
+  // Sort visible defs by custom order (unknown IDs go to end)
+  const sortedVisibleDefs = (() => {
+    const visible = config.timers.filter((d) => !hiddenTimers.includes(d.id));
+    if (timerOrder.length === 0) return visible;
+    const orderMap = new Map(timerOrder.map((id, i) => [id, i]));
+    return [...visible].sort((a, b) => {
+      const ai = orderMap.get(a.id) ?? Infinity;
+      const bi = orderMap.get(b.id) ?? Infinity;
+      return ai - bi;
+    });
+  })();
+
+  // --- Drag reorder state ---
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [orderedDefs, setOrderedDefs] = useState(sortedVisibleDefs);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragStartYRef = useRef(0);
+  const rowRectsRef = useRef<DOMRect[]>([]);
+  const isDraggingRef = useRef(false);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Sync orderedDefs when sortedVisibleDefs changes (and not dragging)
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      setOrderedDefs(sortedVisibleDefs);
+    }
+  }, [config, hiddenTimers, timerOrder]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const captureRowRects = () => {
+    const list = listRef.current;
+    if (!list) return;
+    const rows = list.querySelectorAll<HTMLElement>(".mechanic-row");
+    rowRectsRef.current = Array.from(rows).map((r) => r.getBoundingClientRect());
+  };
+
+  const handlePointerDown = (index: number, e: React.PointerEvent) => {
+    // Only left button
+    if (e.button !== 0) return;
+    dragStartYRef.current = e.clientY;
+    const pointerId = e.pointerId;
+    const target = e.currentTarget as HTMLElement;
+
+    holdTimerRef.current = setTimeout(() => {
+      // Enter drag mode
+      isDraggingRef.current = true;
+      setDragIndex(index);
+      captureRowRects();
+      target.setPointerCapture(pointerId);
+    }, 300);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDraggingRef.current || dragIndex === null) {
+      // Cancel hold if moved too far before 300ms
+      if (holdTimerRef.current && Math.abs(e.clientY - dragStartYRef.current) > 8) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+      return;
+    }
+
+    const y = e.clientY;
+    const rects = rowRectsRef.current;
+    // Find which index the pointer is over
+    let targetIndex = dragIndex;
+    for (let i = 0; i < rects.length; i++) {
+      const mid = rects[i].top + rects[i].height / 2;
+      if (y < mid) {
+        targetIndex = i;
+        break;
+      }
+      targetIndex = i;
+    }
+
+    if (targetIndex !== dragIndex) {
+      setOrderedDefs((prev) => {
+        const next = [...prev];
+        const [moved] = next.splice(dragIndex, 1);
+        next.splice(targetIndex, 0, moved);
+        return next;
+      });
+      setDragIndex(targetIndex);
+      // Re-capture rects after reorder on next frame
+      requestAnimationFrame(captureRowRects);
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      const newOrder = orderedDefs.map((d) => d.id);
+      onReorder(newOrder);
+      invoke("save_timer_order", { bossId, order: newOrder });
+      setDragIndex(null);
+    }
+  };
 
   // Map running timers to their defs (prefer non-expired over expired)
   const timerByDef: Record<string, Timer> = {};
@@ -329,7 +435,7 @@ function BossDetailPage({
         <div className="buff-bar-drag" onMouseDown={startDrag}>
           <span className="buff-bar-grip">⋮</span>
         </div>
-        {visibleDefs.map((def) => (
+        {sortedVisibleDefs.map((def) => (
           <MiniTile key={def.id} def={def} timer={timerByDef[def.id]} />
         ))}
         <div className="buff-bar-actions">
@@ -381,18 +487,35 @@ function BossDetailPage({
           </button>
         </div>
       </div>
-      <div className="mechanic-list">
-        {visibleDefs.map((def) => (
-          <MechanicRow
+      <div
+        className="mechanic-list"
+        ref={listRef}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        {orderedDefs.map((def, i) => (
+          <div
             key={def.id}
-            def={def}
-            timer={timerByDef[def.id]}
-            effectiveHotkey={hotkeys[def.id] || def.hotkey}
-            isMuted={mutedTimers.includes(def.id)}
-            onHide={() => onHideTimer(def.id)}
-            onToggleMute={() => onToggleMute(def.id)}
-            miniMode={miniMode}
-          />
+            className={
+              dragIndex !== null
+                ? dragIndex === i
+                  ? "mechanic-row-dragging"
+                  : "mechanic-row-dimmed"
+                : ""
+            }
+            onPointerDown={(e) => handlePointerDown(i, e)}
+          >
+            <MechanicRow
+              def={def}
+              timer={timerByDef[def.id]}
+              effectiveHotkey={hotkeys[def.id] || def.hotkey}
+              isMuted={mutedTimers.includes(def.id)}
+              onHide={() => onHideTimer(def.id)}
+              onToggleMute={() => onToggleMute(def.id)}
+              miniMode={miniMode}
+            />
+          </div>
         ))}
       </div>
     </div>
@@ -1091,6 +1214,7 @@ function App() {
   const [bossConfig, setBossConfig] = useState<BossConfig | null>(null);
   const [hiddenTimers, setHiddenTimers] = useState<string[]>([]);
   const [mutedTimers, setMutedTimers] = useState<string[]>([]);
+  const [timerOrder, setTimerOrder] = useState<string[]>([]);
   const [miniMode, setMiniMode] = useState(false);
   const [bosses, setBosses] = useState<BossListItem[]>([]);
   const [showPicker, setShowPicker] = useState(true);
@@ -1184,6 +1308,7 @@ function App() {
     setBossConfig(resp.config);
     setHiddenTimers(resp.hidden_timers);
     setMutedTimers(resp.muted_timers);
+    setTimerOrder(resp.timer_order);
     setMiniMode(resp.mini_mode);
     setShowPicker(false);
     setTimers([]);
@@ -1282,11 +1407,14 @@ function App() {
         miniMode={miniMode}
         hotkeys={hotkeyOverrides}
         shortcutsPaused={shortcutsPaused}
+        bossId={activeBoss}
+        timerOrder={timerOrder}
         onBack={goBackToMain}
         onHideTimer={handleHideTimer}
         onToggleMute={handleToggleMute}
         onResetHidden={handleResetHidden}
         onToggleMini={handleToggleMini}
+        onReorder={setTimerOrder}
       />
     );
   }
