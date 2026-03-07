@@ -9,10 +9,10 @@ id = "system_deduction"
 name = "系統扣時(89%)"
 description = "89%的時候施放，每10秒扣一次時間"
 icon = "⏱"
-duration_secs = 10.0
+duration_secs = 9.988
 hotkey = "F7"
 color = "#FF6B6B"
-warning_secs = 3.0
+warning_secs = 2.0
 repeat = true
 
 [[timers]]

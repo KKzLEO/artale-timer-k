@@ -1302,6 +1302,15 @@ function App() {
     };
   }, []);
 
+  // Disable all shortcuts when on boss tab of main screen
+  useEffect(() => {
+    if (showPicker && homeTab === "boss" && !activeBoss) {
+      invoke("unregister_all_shortcuts");
+    } else if (showPicker && homeTab === "buff" && !activeBoss) {
+      invoke("enable_shortcuts");
+    }
+  }, [showPicker, homeTab, activeBoss]);
+
   const selectBoss = async (bossId: string) => {
     const resp = await invoke<SelectBossResponse>("select_boss", { bossId });
     setActiveBoss(bossId);

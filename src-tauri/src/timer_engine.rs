@@ -51,6 +51,9 @@ pub struct TimerExpiredEvent {
     pub def_id: String,
     #[serde(skip)]
     pub repeat: bool,
+    /// How far past zero the timer went (positive value = overshoot amount)
+    #[serde(skip)]
+    pub overshoot: f64,
 }
 
 pub struct TimerEngine {
@@ -129,6 +132,40 @@ impl TimerEngine {
         Ok(id)
     }
 
+    /// Start a timer with an initial overshoot already subtracted (for seamless repeat cycles).
+    pub async fn start_timer_with_overshoot(&self, timer_def_id: &str, overshoot: f64) -> Result<String, String> {
+        let defs = self.timer_defs.lock().await;
+        let buff_defs = self.buff_defs.lock().await;
+        let def = defs
+            .get(timer_def_id)
+            .or_else(|| buff_defs.get(timer_def_id))
+            .ok_or_else(|| format!("Timer definition '{}' not found", timer_def_id))?
+            .clone();
+        drop(defs);
+        drop(buff_defs);
+
+        let id = Uuid::new_v4().to_string();
+        let timer = Timer {
+            id: id.clone(),
+            name: def.name.clone(),
+            icon: def.icon.clone(),
+            duration: def.duration_secs,
+            remaining: def.duration_secs - overshoot,
+            state: TimerState::Running,
+            color: def.color.clone(),
+            chain_to: def.chain_to.clone(),
+            warning_secs: def.warning_secs,
+            def_id: timer_def_id.to_string(),
+            warning_played: false,
+            repeat: def.repeat,
+            timer_type: def.timer_type.clone().unwrap_or_else(|| "boss".to_string()),
+        };
+
+        let mut timers = self.timers.lock().await;
+        timers.insert(id.clone(), timer);
+        Ok(id)
+    }
+
     pub async fn stop_timer(&self, timer_id: &str) -> bool {
         let mut timers = self.timers.lock().await;
         timers.remove(timer_id).is_some()
@@ -168,6 +205,7 @@ impl TimerEngine {
             }
             timer.remaining -= delta_secs;
             if timer.remaining <= 0.0 {
+                let overshoot = -timer.remaining; // positive value
                 timer.remaining = 0.0;
                 timer.state = TimerState::Expired;
                 expired_events.push(TimerExpiredEvent {
@@ -177,6 +215,7 @@ impl TimerEngine {
                     timer_type: timer.timer_type.clone(),
                     def_id: timer.def_id.clone(),
                     repeat: timer.repeat,
+                    overshoot,
                 });
             } else if timer.remaining <= timer.warning_secs {
                 if timer.state != TimerState::Warning {
@@ -308,7 +347,8 @@ pub fn start_tick_loop(
                     let _ = engine.start_timer(&chain_to).await;
                 }
                 if event.repeat {
-                    let _ = engine.start_timer(&event.def_id).await;
+                    // Carry over overshoot for seamless cycle timing
+                    let _ = engine.start_timer_with_overshoot(&event.def_id, event.overshoot).await;
                 }
             }
 

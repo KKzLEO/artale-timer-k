@@ -790,6 +790,12 @@ async fn disable_shortcuts(app: AppHandle, state: State<'_, AppState>) -> Result
 }
 
 #[tauri::command]
+async fn unregister_all_shortcuts(app: AppHandle) -> Result<(), String> {
+    shortcuts::unregister_all(&app);
+    Ok(())
+}
+
+#[tauri::command]
 async fn enable_shortcuts(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     // Don't re-enable if shortcuts are globally paused
     let paused = *state.shortcuts_paused.lock().await;
@@ -963,6 +969,7 @@ pub fn run() {
             request_accessibility_permission,
             disable_shortcuts,
             enable_shortcuts,
+            unregister_all_shortcuts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
